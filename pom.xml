@@ -54,8 +54,7 @@ limitations under the License.
             <manifestEntries>
               <Gerrit-PluginName>createprojectextended</Gerrit-PluginName>
 
-              <Gerrit-Module>com.spazz.shiv.gerrit.plugins.Module</Gerrit-Module>
-              <Gerrit-HttpModule>com.spazz.shiv.gerrit.plugins.HttpModule</Gerrit-HttpModule>
+              <Gerrit-Module>com.spazz.shiv.gerrit.plugins.creategr.Module</Gerrit-Module>
 
               <Implementation-Vendor>Shiv</Implementation-Vendor>
               <Implementation-URL>http://localhost</Implementation-URL>

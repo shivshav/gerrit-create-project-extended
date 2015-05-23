@@ -14,11 +14,25 @@
 
 package com.spazz.shiv.gerrit.plugins.creategr;
 
+import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
+import com.google.gerrit.extensions.events.LifecycleListener;
+import com.google.gerrit.extensions.events.NewProjectCreatedListener;
 import com.google.inject.AbstractModule;
+import com.google.inject.internal.UniqueAnnotations;
 
 class Module extends AbstractModule {
-  @Override
-  protected void configure() {
+    @Override
+    protected void configure() {
     // TODO
-  }
+//        bind(ProjectListenerTest.class);
+        bind(LifecycleListener.class)
+                .annotatedWith(UniqueAnnotations.create())
+                .to(CreateLog.class);
+        bind(NewProjectCreatedListener.class)
+                .annotatedWith(UniqueAnnotations.create())
+                .to(ProjectListenerTest.class);
+        bind(GitReferenceUpdatedListener.class)
+                .annotatedWith(UniqueAnnotations.create())
+                .to(ProjectListenerTest.class);
+    }
 }

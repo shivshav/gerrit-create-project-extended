@@ -9,8 +9,6 @@ gerrit_plugin(
     'Gerrit-ApiType: extension',
     'Gerrit-ApiVersion: 2.11',
     'Gerrit-Module: com.spazz.shiv.gerrit.plugins.creategr.Module',
-    'Gerrit-SshModule: com.spazz.shiv.gerrit.plugins.creategr.SshModule',
-    'Gerrit-HttpModule: com.spazz.shiv.gerrit.plugins.creategr.HttpModule',
   ],
 )
 
