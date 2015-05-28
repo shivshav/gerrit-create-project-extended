@@ -27,7 +27,7 @@ class Module extends AbstractModule {
 //        bind(ProjectListenerTest.class);
         bind(LifecycleListener.class)
                 .annotatedWith(UniqueAnnotations.create())
-                .to(CreateLog.class);
+                .to(CreateProjectExtendedManager.class);
         bind(NewProjectCreatedListener.class)
                 .annotatedWith(UniqueAnnotations.create())
                 .to(ProjectListenerTest.class);
