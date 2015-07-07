@@ -4,7 +4,10 @@ import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
 import com.google.gerrit.extensions.events.NewProjectCreatedListener;
 import com.google.gerrit.reviewdb.client.Branch;
 import com.google.gerrit.reviewdb.client.Project;
+import com.google.gerrit.server.GerritPersonIdent;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
+import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.CreateBranch;
 import com.google.inject.Inject;
 import org.eclipse.jgit.api.CreateBranchCommand;
@@ -23,6 +26,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by shivneil on 5/20/15.
@@ -34,6 +39,10 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
     //TODO: Create gitreview file
     //TODO: Commit to develop (bypass review?)
     private final GitRepositoryManager repoManager;
+
+    private final GitReferenceUpdated referenceUpdated;
+    private final PersonIdent serverIdent;
+    private final MetaDataUpdate.User metaDataUpdateFactory;
     private static final Logger log = LoggerFactory.getLogger(ProjectListenerTest.class);
 
     private final static String NEW_REF_CREATED_ID = "0000000000000000000000000000000000000000";
@@ -54,8 +63,12 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
 //        log.info("The Listener was called!");
 //    }
     @Inject
-    public ProjectListenerTest(GitRepositoryManager repoManager) {
+    public ProjectListenerTest(GitRepositoryManager repoManager, GitReferenceUpdated referenceUpdated,
+                               @GerritPersonIdent PersonIdent personIdent, MetaDataUpdate.User metaDataUpdateFactory) {
         this.repoManager = repoManager;
+        this.referenceUpdated = referenceUpdated;
+        this.serverIdent = personIdent;
+        this.metaDataUpdateFactory = metaDataUpdateFactory;
         log.info("New Project Creation Listener Fired");
     }
 
@@ -142,8 +155,14 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
             Project.NameKey newProjNameKey = new Project.NameKey(projName);
             try {
                 final Repository newRepo = repoManager.openRepository(newProjNameKey);
-                createDevelopBranch(newRepo);
-                addGitReviewFile(newRepo);
+                String branchCreated = createDevelopBranch(newRepo);
+//                addGitReviewFile(newRepo);
+                createFileCommit(newRepo, newProjNameKey, branchCreated);
+//
+//                List<String> list = new ArrayList<>();
+//                list.add(branchCreated);
+//
+//                secondEmptyCommitTest(newRepo, newProjNameKey, list);
 
             } catch (IOException ioe) {
                 log.error(ioe.getMessage());
@@ -151,8 +170,9 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
         }
     }
     // TODO: Add commitBuilder stuff to create the gitreview file (look at createemptycommits code in PerformCreateProject.java of Gerrit)
-    private void createDevelopBranch(Repository repo) {
+    private String createDevelopBranch(Repository repo) {
         Git git = new Git(repo);
+        String refCreated = null;
         log.info("The repo dir is: " + repo.getDirectory().getName());
         try {
             Ref r = git.branchCreate()
@@ -161,7 +181,7 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
             log.info("Branch " + r.getName() + " created.");
             updateHead(repo, r.getName(), true, false);
             log.info("The HEAD is at " + r.getName());
-
+            refCreated = r.getName();
         } catch(RefAlreadyExistsException raee) {
             log.error("That branch already exists!");
         } catch(RefNotFoundException rnfe) {
@@ -175,6 +195,8 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
         } finally {
             git.close();
         }
+        return refCreated;
+
     }
 
     private RefUpdate.Result updateHead(Repository repo, String newHead, boolean force, boolean detach) throws IOException {
@@ -183,18 +205,131 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
         return refUpdate.link(newHead);
     }
 
+    private void createFileCommit(Repository repo, Project.NameKey project, String refName) {
+        log.info("Now entering the createFileCommit method");
+
+        String[] refs = new String[]{refName};
+
+//        Git git = new Git(repo);
+//        File myfile = new File(repo.getDirectory().getParent(), "testfile");
+//        try {
+//            myfile.createNewFile();
+//        } catch (IOException ioe) {
+//            log.info("Exception creating new file in repo");
+//        }
+//
+//        git.add().addFilepattern("testfile").call();
+
+        try(ObjectInserter oi = repo.newObjectInserter()) {
+
+            ObjectId parent = repo.getRef(refName).getObjectId();
+
+            // Contents of the file becomes a blob
+            byte[] data = "Hello World!".getBytes();
+            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, data, 0, data.length);
+            log.info("FileID: " + fileId.getName());
+
+            // Add a tree object that represents the filename and metadata
+            TreeFormatter formatter = new TreeFormatter();
+            formatter.append("hello.txt", FileMode.REGULAR_FILE, fileId);
+            ObjectId treeId = oi.insert(formatter);
+            log.info("TreeID: " + treeId.getName());
+
+            // Commit the changes to the repo
+            PersonIdent person = new PersonIdent("shiv", "sprasad0603@gmail.com");
+            CommitBuilder cb = new CommitBuilder();
+            cb.setParentId(parent);
+            cb.setTreeId(treeId);
+            cb.setAuthor(person);
+            cb.setCommitter(serverIdent);
+            cb.setMessage("Initial Hello World File");
+            ObjectId commitId = oi.insert(cb);
+            log.info("CommitID: " + commitId.getName());
+
+            // Flush to inform the framework of the commit
+            oi.flush();
+
+            RefUpdate ru = repo.updateRef(refName);
+//            ru.setForceUpdate(true);
+            ru.setRefLogIdent(person);
+            ru.setNewObjectId(commitId);
+//            ru.setExpectedOldObjectId(ObjectId.zeroId());
+            ru.setRefLogMessage("commit: Initial Hello", false);
+
+            RefUpdate.Result result = ru.update();
+
+            switch (result) {
+                case NEW:
+//                    referenceUpdated.fire(project, ru);
+                    break;
+                default: {
+                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
+                }
+            }
+//
+//            for (String ref : refs) {
+//                RefUpdate ru = repo.updateRef(ref);
+//                ru.setNewObjectId(commitId);
+//                final RefUpdate.Result result = ru.update();
+//                switch (result) {
+//                    case NEW:
+//                        referenceUpdated.fire(project, ru);
+//                        break;
+//                    default: {
+//                        throw new IOException(String.format("Failed to create ref \"%s\": %s", ref, result.name()));
+//                    }
+//                }
+//            }
+        } catch(IOException ioe) {
+            log.error("Cannot create hello world commit", ioe);
+        }
+    }
+
+    private void secondEmptyCommitTest(final Repository repo, final Project.NameKey project, final List<String> refs) {
+        try (ObjectInserter oi = repo.newObjectInserter()) {
+            CommitBuilder cb = new CommitBuilder();
+            cb.setTreeId(oi.insert(Constants.OBJ_TREE, new byte[] {}));
+            cb.setAuthor(metaDataUpdateFactory.getUserPersonIdent());
+            cb.setCommitter(serverIdent);
+            cb.setMessage("Second commit test\n");
+
+            ObjectId id = oi.insert(cb);
+            oi.flush();
+
+            for (String ref : refs) {
+                RefUpdate ru = repo.updateRef(Constants.HEAD);
+                ru.setNewObjectId(id);
+                final RefUpdate.Result result = ru.update();
+                switch (result) {
+                    case NEW:
+                        referenceUpdated.fire(project, ru);
+                        break;
+                    default: {
+                        throw new IOException(String.format(
+                                "Failed to create ref \"%s\": %s", ref, result.name()));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            log.error(
+                    "Cannot create empty commit for "
+                            + project.get(), e);
+//            throw e;
+        }
+    }
+
     private void addGitReviewFile(Repository repo) {
-        BufferedWriter writer = null;
+//        BufferedWriter writer = null;
 
         try {
             String filename = repo.getDirectory() + "/" + GITREVIEW_FILENAME;
-            File grFile = new File(filename);
-
-            writer = new BufferedWriter(new FileWriter(grFile));
-            writer.write("Hello world!");
+            File myfile = new File(repo.getDirectory().getParent(), "testfile");
+            myfile.createNewFile();
+//            writer = new BufferedWriter(new FileWriter(grFile));
+//            writer.write("Hello world!");
             Git git = new Git(repo);
 
-            git.add().addFilepattern(filename);
+            git.add().addFilepattern("testfile").call();
             git.commit().setMessage("Commit worked?").call();
 
         } catch (IOException ioe) {
@@ -202,13 +337,14 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
         } catch(GitAPIException gapie) {
             log.error(gapie.getMessage());
         } finally {
-            try {
-                if(writer != null) {
-                    writer.close();
-                }
-            } catch(IOException ioe){
-                log.error(ioe.getMessage());
-            }
+//            try {
+//                if(writer != null) {
+//                    writer.close();
+//                }
+//            } catch(IOException ioe){
+//                log.error(ioe.getMessage());
+//            }
+            repo.close();
         }
         //RevBlob
 
