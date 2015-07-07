@@ -28,6 +28,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringTokenizer;
 
 /**
  * Created by shivneil on 5/20/15.
@@ -56,12 +57,20 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
     private String createdProjectName;
     private String createdProjectHead;
 
+    private final static String GITREVIEW_REMOTE_NAME = "gerrit";
 
-    //    @Inject
-//    public ProjectListenerTest(GerritApi gerritApi) {
-//        this.gApi = gerritApi;
-//        log.info("The Listener was called!");
-//    }
+    private final static String GITREVIEW_HOST_KEY = "host=";
+    private final static String GITREVIEW_HOST_VALUE = "dev.randrweb.org";
+
+    private final static String GITREVIEW_PORT_KEY = "port=";
+    private final static String GITREVIEW_PORT_VALUE = "29418";
+
+    private final static String GITREVIEW_PROJECT_KEY = "project=";
+    private final static String GITREVIEW_PROJECT_VALUE = "TBD";
+
+    private final static String GITREVIEW_DEFAULT_BRANCH_KEY = "defaultbranch=";
+    private final static String GITREVIEW_DEFAULT_BRANCH_VALUE = "develop";
+
     @Inject
     public ProjectListenerTest(GitRepositoryManager repoManager, GitReferenceUpdated referenceUpdated,
                                @GerritPersonIdent PersonIdent personIdent, MetaDataUpdate.User metaDataUpdateFactory) {
@@ -208,30 +217,23 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
     private void createFileCommit(Repository repo, Project.NameKey project, String refName) {
         log.info("Now entering the createFileCommit method");
 
-        String[] refs = new String[]{refName};
-
-//        Git git = new Git(repo);
-//        File myfile = new File(repo.getDirectory().getParent(), "testfile");
-//        try {
-//            myfile.createNewFile();
-//        } catch (IOException ioe) {
-//            log.info("Exception creating new file in repo");
-//        }
-//
-//        git.add().addFilepattern("testfile").call();
-
         try(ObjectInserter oi = repo.newObjectInserter()) {
 
             ObjectId parent = repo.getRef(refName).getObjectId();
 
             // Contents of the file becomes a blob
-            byte[] data = "Hello World!".getBytes();
-            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, data, 0, data.length);
+            byte[] grFile = ("[" + GITREVIEW_REMOTE_NAME + "]\n" +
+                            GITREVIEW_HOST_KEY + GITREVIEW_HOST_VALUE + "\n" +
+                            GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
+                            GITREVIEW_PROJECT_KEY + project.get() + ".git" + "\n" +
+                            GITREVIEW_DEFAULT_BRANCH_KEY + normalizeBranchName(refName) + "\n").getBytes();
+
+            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, grFile, 0, grFile.length);
             log.info("FileID: " + fileId.getName());
 
             // Add a tree object that represents the filename and metadata
             TreeFormatter formatter = new TreeFormatter();
-            formatter.append("hello.txt", FileMode.REGULAR_FILE, fileId);
+            formatter.append(GITREVIEW_FILENAME, FileMode.REGULAR_FILE, fileId);
             ObjectId treeId = oi.insert(formatter);
             log.info("TreeID: " + treeId.getName());
 
@@ -262,6 +264,8 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
                 case NEW:
 //                    referenceUpdated.fire(project, ru);
                     break;
+                case FAST_FORWARD:
+                    break;
                 default: {
                     throw new IOException(String.format("Failed to create ref: %s", result.name()));
                 }
@@ -283,6 +287,15 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
         } catch(IOException ioe) {
             log.error("Cannot create hello world commit", ioe);
         }
+    }
+
+    private String normalizeBranchName(String refName) {
+        refName = refName.replace("refs/heads/", "");
+        while(refName.startsWith("/")) {
+            refName = refName.substring(1);
+        }
+
+        return refName;
     }
 
     private void secondEmptyCommitTest(final Repository repo, final Project.NameKey project, final List<String> refs) {
