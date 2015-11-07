@@ -4,7 +4,27 @@ BASEDIR=$(readlink -f $(dirname $0))
 IMAGE_NAME=openfrontier/gerrit
 CONTAINER_NAME=gerrit
 LOCAL_SITE=$BASEDIR/gerrit_site
+ATTEMPT_RESTART=false
 
+while getopts "c:i:rs:" opt; do
+    case "${opt}" in
+    c)  CONTAINER_NAME=$OPTARG
+        ;;
+    i)  IMAGE_NAME=$OPTARG
+        ;;
+    r)  ATTEMPT_RESTART=true
+        ;;
+    s)  LOCAL_SITE=$OPTARG
+        ;;
+    \?) echo "Invalid option: -${OPTARG}" >&2
+        exit 1
+        ;;
+    :)  echo "-${OPTARG} requires an argument." >&2
+        exit 1
+        ;;
+    esac
+done
+shift $((OPTIND-1))
 
 # Check for a running container
 docker ps | grep $CONTAINER_NAME > /dev/null
@@ -12,18 +32,31 @@ IS_RUNNING=$?
 
 if [ $IS_RUNNING -eq 0 ]; then
     echo "Container is already running"
+
+    if [[ $ATTEMPT_RESTART = true ]]; then
+        echo "Attempting to restart ${CONTAINER_NAME}..."
+        docker restart $CONTAINER_NAME > /dev/null
+        RESTARTED=$?
+
+        if [ $RESTARTED -eq 0 ]; then
+            echo "Restarted successfully"
+        else
+            echo "Restart FAILED!"
+            exit 1
+        fi
+    fi
     exit 0;
 fi
 
 # Check if we can start the container
 echo "Attempting to start ${CONTAINER_NAME}..."
-docker start $CONTAINER_NAME
+docker start $CONTAINER_NAME > /dev/null
 IS_STARTED=$?
 
-if [ $IS_STARTED -eq 0 ];
+if [ $IS_STARTED -eq 0 ]; then
     echo "Container started"
     exit 0;
-else if [ $IS_STARTED -eq 1 ];
+elif [ $IS_STARTED -eq 1 ]; then
     echo "Container hasn't been deployed"
 fi
 

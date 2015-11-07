@@ -8,7 +8,7 @@ gerrit_plugin(
     'Gerrit-PluginName: create-project-extended',
     'Gerrit-ApiType: extension',
     'Gerrit-ApiVersion: 2.11',
-    'Gerrit-Module: com.spazz.shiv.gerrit.plugins.creategr.Module',
+    'Gerrit-Module: com.spazz.shiv.gerrit.plugins.createprojectextended.Module',
   ],
 )
 

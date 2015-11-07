@@ -1,8 +1,7 @@
-package com.spazz.shiv.gerrit.plugins.creategr;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.creategr;
 
 import com.google.gerrit.extensions.events.LifecycleListener;
 
-import org.apache.commons.collections.map.HashedMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +31,10 @@ public class CreateProjectExtendedManager implements LifecycleListener {
 
     @Override
     public void stop() {
-        projectsInCreation.clear();
-        projectsInCreation = null;
+        if (projectsInCreation != null) {
+            projectsInCreation.clear();
+            projectsInCreation = null;
+        }
         log.info("CREATE_PROJECT_EXTENDED Plugin Unloaded");
     }
 

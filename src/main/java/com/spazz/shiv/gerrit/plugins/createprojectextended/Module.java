@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.spazz.shiv.gerrit.plugins.creategr;
+package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
 import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
 import com.google.gerrit.extensions.events.LifecycleListener;
 import com.google.gerrit.extensions.events.NewProjectCreatedListener;
+import com.google.gerrit.extensions.registration.DynamicSet;
+import com.google.gerrit.extensions.webui.TopMenu;
 import com.google.inject.AbstractModule;
 import com.google.inject.internal.UniqueAnnotations;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.client.CreateProjectExtendedMenuItem;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.CreateProjectExtendedManager;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.ProjectListenerTest;
 
 class Module extends AbstractModule {
     @Override
@@ -34,5 +39,9 @@ class Module extends AbstractModule {
         bind(GitReferenceUpdatedListener.class)
                 .annotatedWith(UniqueAnnotations.create())
                 .to(ProjectListenerTest.class);
+        DynamicSet
+                .bind(binder(), TopMenu.class)
+                .to(CreateProjectExtendedMenuItem.class);
+
     }
 }

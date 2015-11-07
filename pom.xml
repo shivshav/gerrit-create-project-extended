@@ -36,24 +36,18 @@ limitations under the License.
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
-                <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
-                    <encoding>UTF-8</encoding>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.4</version>
                 <configuration>
+                    <includes>
+                        <include>**/*.*</include>
+                    </includes>
                     <archive>
                         <manifestEntries>
                             <Gerrit-PluginName>createprojectextended</Gerrit-PluginName>
 
-                            <Gerrit-Module>com.spazz.shiv.gerrit.plugins.creategr.Module</Gerrit-Module>
+                            <Gerrit-Module>com.spazz.shiv.gerrit.plugins.createprojectextended.Module</Gerrit-Module>
+                            <Gerrit-HttpModule>com.spazz.shiv.gerrit.plugins.createprojectextended.HttpModule</Gerrit-HttpModule>
 
                             <Implementation-Vendor>Shiv</Implementation-Vendor>
                             <Implementation-URL>http://localhost</Implementation-URL>
@@ -66,6 +60,36 @@ limitations under the License.
                         </manifestEntries>
                     </archive>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <source>1.7</source>
+                    <target>1.7</target>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>gwt-maven-plugin</artifactId>
+                <version>2.7.0</version>
+                <configuration>
+                    <module>com.spazz.shiv.gerrit.plugins.createprojectextended.HelloPlugin</module>
+                    <disableClassMetadata>true</disableClassMetadata>
+                    <disableCastChecking>true</disableCastChecking>
+                    <webappDirectory>${project.build.directory}/classes/static</webappDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -82,6 +106,25 @@ limitations under the License.
                             <outputDirectory>${dir}</outputDirectory>
                         </configuration>
                     </plugin>
+                    <plugin>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <executions>
+                            <execution><!-- Run our version calculation script -->
+                                <id>Version Calculation</id>
+                                <phase>install</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${basedir}/gerrit-docker/run.sh</executable>
+                                    <arguments>
+                                        <argument>-r</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
@@ -91,6 +134,17 @@ limitations under the License.
             <groupId>com.google.gerrit</groupId>
             <artifactId>gerrit-${Gerrit-ApiType}-api</artifactId>
             <version>${Gerrit-ApiVersion}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gerrit</groupId>
+            <artifactId>gerrit-plugin-gwtui</artifactId>
+            <version>${Gerrit-ApiVersion}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.gwt</groupId>
+            <artifactId>gwt-user</artifactId>
+            <version>2.7.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
