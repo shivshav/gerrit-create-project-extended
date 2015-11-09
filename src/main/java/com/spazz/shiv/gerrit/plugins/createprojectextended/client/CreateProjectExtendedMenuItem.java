@@ -18,7 +18,7 @@ public class CreateProjectExtendedMenuItem implements TopMenu {
     public CreateProjectExtendedMenuItem(@PluginName String name) {
         menuEntries = new ArrayList<>();
         menuEntries.add(new MenuEntry(GerritTopMenu.PROJECTS, Collections
-                .singletonList(new MenuItem("Create Project Extended Screen", "#/x/" + name, ""))));
+                .singletonList(new MenuItem("Create Project Extended", "#/x/" + name + "/admin/create-project", ""))));
     }
 
     @Override

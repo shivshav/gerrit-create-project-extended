@@ -78,7 +78,7 @@ limitations under the License.
                 <artifactId>gwt-maven-plugin</artifactId>
                 <version>2.7.0</version>
                 <configuration>
-                    <module>com.spazz.shiv.gerrit.plugins.createprojectextended.HelloPlugin</module>
+                    <module>com.spazz.shiv.gerrit.plugins.createprojectextended.CreateProjectExtendedPlugin</module>
                     <disableClassMetadata>true</disableClassMetadata>
                     <disableCastChecking>true</disableCastChecking>
                     <webappDirectory>${project.build.directory}/classes/static</webappDirectory>
@@ -141,6 +141,11 @@ limitations under the License.
             <artifactId>gerrit-plugin-gwtui</artifactId>
             <version>${Gerrit-ApiVersion}</version>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.google.gerrit</groupId>-->
+            <!--<artifactId>gerrit-gwtui</artifactId>-->
+            <!--<version>${Gerrit-ApiVersion}</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>com.google.gwt</groupId>
             <artifactId>gwt-user</artifactId>

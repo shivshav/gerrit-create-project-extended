@@ -12,7 +12,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     static class Factory implements Screen.EntryPoint {
         @Override
         public void onLoad(Screen screen) {
-            screen.setPageTitle("Hello");
+            screen.setPageTitle("Create Project Extended");
             screen.show(new CreateProjectExtendedScreen());
         }
     }

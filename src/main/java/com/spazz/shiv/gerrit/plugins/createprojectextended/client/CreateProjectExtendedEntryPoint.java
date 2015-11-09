@@ -11,7 +11,7 @@ public class CreateProjectExtendedEntryPoint extends PluginEntryPoint {
 
     @Override
     public void onPluginLoad() {
-        Plugin.get().screen("", new CreateProjectExtendedScreen.Factory());
+        Plugin.get().screen("admin/create-project", new CreateProjectExtendedScreen.Factory());
     }
 }
 
