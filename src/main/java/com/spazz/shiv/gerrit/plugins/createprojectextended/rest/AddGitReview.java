@@ -1,9 +1,11 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
+import com.google.common.base.Strings;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.CanonicalWebUrl;
+import com.google.gerrit.server.config.ConfigResource;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.ProjectResource;
@@ -49,6 +51,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
     static class GitReviewInput {
         String branch;
+        String message;
     }
 
     static class GitReviewInfo {
@@ -76,7 +79,25 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
     @Override
     public Response<GitReviewInfo> apply(ProjectResource projectResource, GitReviewInput gitReviewInput) throws RestApiException {
+
         log.info("Attempting to create gitreview file...");
+
+        String ref;
+        String message;
+
+        if(Strings.isNullOrEmpty(gitReviewInput.branch)) {
+            ref = Constants.R_HEADS + Constants.HEAD;
+        } else {
+            ref = gitReviewInput.branch;
+        }
+
+        if(Strings.isNullOrEmpty(gitReviewInput.message)) {
+            message = GITREVIEW_DEFAULT_COMMIT_MESSAGE;
+            log.info("Commit message not found in data. Using default message");
+        }
+        else {
+            message = gitReviewInput.message;
+        }
 
         Project.NameKey name = new Project.NameKey(projectResource.getName());
 
@@ -85,8 +106,8 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         try {
             repo = repoManager.openRepository(name);
 
-            String ref = denormalizeBranchName(gitReviewInput.branch);
-            if(!Repository.isValidRefName(ref)) {
+            ref = denormalizeBranchName(ref);
+            if(!ref.matches(Constants.HEAD) && !Repository.isValidRefName(ref)) {
                 throw new BadRequestException(ref + " is not a valid refname!");
             }
 
@@ -96,7 +117,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             }
 
             // Create the gitreview file
-            info = createFileCommit(repo, name, ref);
+            info = createFileCommit(repo, name, ref, message);
 
         } catch (IOException ioe) {
             throw new RestApiException(ioe.getMessage());
@@ -110,7 +131,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     }
 
 
-    private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName) {
+    private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName, String message) {
         log.info("Now entering the createFileCommit method");
 
         GitReviewInfo info = null;
@@ -144,10 +165,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             cb.setTreeId(treeId);
             cb.setAuthor(metaDataUpdateFactory.getUserPersonIdent());
             cb.setCommitter(metaDataUpdateFactory.getUserPersonIdent());
-            cb.setMessage(GITREVIEW_DEFAULT_COMMIT_MESSAGE);
-
-
-
+            cb.setMessage(message);
             ObjectId commitId = oi.insert(cb);
             log.info("CommitID: " + commitId.getName());
 
@@ -163,7 +181,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             ru.setRefLogIdent(metaDataUpdateFactory.getUserPersonIdent());
             ru.setNewObjectId(commitId);
 //            ru.setExpectedOldObjectId(ObjectId.zeroId());
-            ru.setRefLogMessage("commit: Initial Hello", false);
+            ru.setRefLogMessage("commit: " + message, false);
 
             RefUpdate.Result result = ru.update();
             log.info("Result: " + result.name());
@@ -199,6 +217,10 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     }
 
     private String normalizeBranchName(String refName) {
+//        if(refName.matches(Constants.HEAD)) {
+//            return refName;
+//        }
+
         refName = refName.replace(Constants.R_HEADS, "");
         while(refName.startsWith("/")) {
             refName = refName.substring(1);
@@ -209,6 +231,12 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     }
 
     private String denormalizeBranchName(String refname) {
+
+        if(refname.matches(Constants.HEAD)) {
+            log.info("denormalizeBranchName::refname was " + refname);
+            return refname;
+        }
+
         // remove all prepended slashes
         while (refname.startsWith("/")) {
             refname = refname.substring(1);
