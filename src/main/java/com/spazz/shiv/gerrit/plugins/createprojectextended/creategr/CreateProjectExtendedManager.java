@@ -2,6 +2,7 @@ package com.spazz.shiv.gerrit.plugins.createprojectextended.creategr;
 
 import com.google.gerrit.extensions.events.LifecycleListener;
 
+import com.google.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,14 +13,12 @@ import java.util.Map;
 /**
  * Created by shivneil on 5/22/15.
  */
+@Singleton
 public class CreateProjectExtendedManager implements LifecycleListener {
     private static final Logger log = LoggerFactory.getLogger(CreateProjectExtendedManager.class);
     private boolean started;
     private static Map<String, ProjectListenerTest> projectsInCreation;
     public static final String MAP_KEY_SEPARATOR = ":";
-
-    public CreateProjectExtendedManager() {
-    }
 
     @Override
     public void start() {

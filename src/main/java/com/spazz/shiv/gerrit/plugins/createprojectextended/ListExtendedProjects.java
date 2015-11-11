@@ -29,7 +29,7 @@ class ListExtendedProjects implements RestReadView<ConfigResource> {
     }
 
     @Override
-    public Map<String, ProjectInfo> apply(ConfigResource projectResource)
+    public Map<String, ProjectInfo> apply(ConfigResource configResource)
             throws RestApiException {
         log.info("apply::hey look it fired!");
         Map<String, ProjectInfo> collection = Maps.newTreeMap();
