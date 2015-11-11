@@ -1,4 +1,4 @@
-package com.spazz.shiv.gerrit.plugins.createprojectextended;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import com.google.gerrit.extensions.annotations.PluginName;
 import com.google.gerrit.extensions.registration.DynamicMap;
@@ -16,14 +16,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Random;
 
 
 /**
  * Created by shivneil on 11/9/15.
  */
 @Singleton
-class ExtendedProjectCollection implements
+public class ExtendedProjectCollection implements
         ChildCollection<ConfigResource, ExtendedProjectResource>,
         AcceptsCreate<ConfigResource> {
     private static final Logger log = LoggerFactory.getLogger(ExtendedProjectCollection.class);

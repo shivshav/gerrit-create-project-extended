@@ -1,12 +1,10 @@
-package com.spazz.shiv.gerrit.plugins.createprojectextended;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import autovalue.shaded.com.google.common.common.collect.Maps;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.common.ProjectInfo;
 import com.google.gerrit.extensions.restapi.*;
-import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.config.ConfigResource;
-import com.google.gerrit.server.project.ProjectJson;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.slf4j.Logger;

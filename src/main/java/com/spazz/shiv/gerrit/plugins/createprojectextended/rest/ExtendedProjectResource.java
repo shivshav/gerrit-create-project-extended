@@ -1,6 +1,5 @@
-package com.spazz.shiv.gerrit.plugins.createprojectextended;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
-import com.google.gerrit.extensions.restapi.RestResource;
 import com.google.gerrit.extensions.restapi.RestView;
 import com.google.gerrit.server.project.ProjectControl;
 import com.google.gerrit.server.project.ProjectResource;
@@ -11,7 +10,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Created by shivneil on 11/9/15.
  */
-class ExtendedProjectResource extends ProjectResource{
+public class ExtendedProjectResource extends ProjectResource{
     public static final TypeLiteral<RestView<ExtendedProjectResource>> EXTENDED_PROJECT_KIND =
             new TypeLiteral<RestView<ExtendedProjectResource>>() {};
 

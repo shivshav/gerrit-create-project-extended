@@ -1,4 +1,4 @@
-package com.spazz.shiv.gerrit.plugins.createprojectextended;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import com.google.gerrit.common.data.GlobalCapability;
 import com.google.gerrit.extensions.annotations.CapabilityScope;
@@ -13,7 +13,8 @@ import com.google.inject.Inject;
 
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
-import com.spazz.shiv.gerrit.plugins.createprojectextended.CreateExtendedProject.ExtendedProjectInput;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject.ExtendedProjectInput;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,7 @@ import java.util.List;
  * Created by shivneil on 11/8/15.
  */
 @RequiresCapability(value = GlobalCapability.CREATE_PROJECT, scope = CapabilityScope.CORE)
-class CreateExtendedProject implements RestModifyView<ConfigResource, ExtendedProjectInput> {
+public class CreateExtendedProject implements RestModifyView<ConfigResource, ExtendedProjectInput> {
 
     private final static Logger log = LoggerFactory.getLogger(CreateExtendedProject.class);
 
@@ -32,7 +33,7 @@ class CreateExtendedProject implements RestModifyView<ConfigResource, ExtendedPr
         List<String> gitignoreTemplates;
     }
 
-    interface Factory {
+    public interface Factory {
         CreateExtendedProject create(String projName);
     }
 

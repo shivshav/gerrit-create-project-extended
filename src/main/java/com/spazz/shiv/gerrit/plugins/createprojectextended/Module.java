@@ -15,8 +15,8 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
 import static com.google.gerrit.server.config.ConfigResource.CONFIG_KIND;
-
-import static com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectResource.EXTENDED_PROJECT_KIND;
+import static com.google.gerrit.server.project.ProjectResource.PROJECT_KIND;
+import static com.spazz.shiv.gerrit.plugins.createprojectextended.rest.ExtendedProjectResource.EXTENDED_PROJECT_KIND;
 
 import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
 import com.google.gerrit.extensions.events.LifecycleListener;
@@ -31,6 +31,10 @@ import com.google.inject.internal.UniqueAnnotations;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.client.CreateProjectExtendedMenuItem;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.CreateProjectExtendedManager;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.ProjectListenerTest;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitIgnore;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitReview;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.ExtendedProjectCollection;
 
 class Module extends AbstractModule {
     @Override
@@ -55,13 +59,13 @@ class Module extends AbstractModule {
             protected void configure() {
                 DynamicMap.mapOf(binder(), EXTENDED_PROJECT_KIND);
                 bind(ExtendedProjectCollection.class);
-                child(CONFIG_KIND, "project").to(ExtendedProjectCollection.class);
+                child(CONFIG_KIND, "projects").to(ExtendedProjectCollection.class);
                 install(new FactoryModuleBuilder().build(CreateExtendedProject.Factory.class));
-//
-//                put(PROJECT_KIND, "gitreview")
-//                        .to(AddGitReview.class);
-//                put(PROJECT_KIND, "gitignore")
-//                        .to(AddGitIgnore.class);
+
+                put(PROJECT_KIND, "gitreview")
+                        .to(AddGitReview.class);
+                put(PROJECT_KIND, "gitignore")
+                        .to(AddGitIgnore.class);
             }
         });
     }

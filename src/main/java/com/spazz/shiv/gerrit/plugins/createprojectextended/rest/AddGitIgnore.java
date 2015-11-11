@@ -12,7 +12,7 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
     }
 
     @Override
-    public Object apply(ProjectResource projectResource, GitIgnoreInput gitIgnoreInput) throws AuthException, BadRequestException, ResourceConflictException, Exception {
-        return Response.ok("Git Ignore Response");
+    public Object apply(ProjectResource projectResource, GitIgnoreInput gitIgnoreInput) throws AuthException, BadRequestException, ResourceConflictException {
+        return Response.created("GitIgnore Response");
     }
 }
