@@ -1,0 +1,7 @@
+{
+    "branches":["master","develop"],
+    "create_empty_commit":"true",
+    "gitreview":"true",
+    "gitignore_templates":["java","python"]
+#    "head":"develop"
+}

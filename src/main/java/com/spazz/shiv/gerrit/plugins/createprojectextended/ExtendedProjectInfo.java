@@ -11,4 +11,6 @@ public class ExtendedProjectInfo {
     public ProjectInfo projectInfo;
     public String gitreviewCommit;
     public String gitignoreCommit;
+
+    public String head;
 }

@@ -165,7 +165,7 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
                     .setName(branchToCreate)
                     .call();
             log.info("Branch " + r.getName() + " created.");
-            updateHead(repo, r.getName(), true, false);
+//            updateHead(repo, r.getName(), true, false);
             log.info("The HEAD is at " + r.getName());
             refCreated = r.getName();
         } catch(RefAlreadyExistsException raee) {
@@ -176,21 +176,14 @@ public class ProjectListenerTest implements NewProjectCreatedListener, GitRefere
             log.error("That ref name is invalid");
         } catch(GitAPIException gapie) {
             log.error("Generic Git API Exception");
-        } catch(IOException ioe) {
-            log.error("General IO Exception from updateHead");
+//        } catch(IOException ioe) {
+//            log.error("General IO Exception from updateHead");
         } finally {
             git.close();
         }
         return refCreated;
 
     }
-
-    private RefUpdate.Result updateHead(Repository repo, String newHead, boolean force, boolean detach) throws IOException {
-        RefUpdate refUpdate = repo.getRefDatabase().newUpdate(Constants.HEAD, detach);
-        refUpdate.setForceUpdate(force);
-        return refUpdate.link(newHead);
-    }
-
 
     private void secondEmptyCommitTest(final Repository repo, final Project.NameKey project, final List<String> refs) {
         try (ObjectInserter oi = repo.newObjectInserter()) {
