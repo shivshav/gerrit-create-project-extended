@@ -3,7 +3,6 @@ package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
-import com.google.gerrit.server.GerritPersonIdent;
 import com.google.gerrit.server.config.CanonicalWebUrl;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
@@ -40,6 +39,8 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     private final static String GITREVIEW_DEFAULT_BRANCH_KEY = "defaultbranch=";
     private final static String GITREVIEW_DEFAULT_BRANCH_VALUE = "develop";
 
+    private final static String GITREVIEW_DEFAULT_COMMIT_MESSAGE = "Added .gitreview file";
+
     private final String webUrl;
     private final GitRepositoryManager repoManager;
     private final Provider<CurrentUser> userProvider;
@@ -48,6 +49,11 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
     static class GitReviewInput {
         String branch;
+    }
+
+    static class GitReviewInfo {
+        String commitId;
+        String commitMessage;
     }
 
     @Inject
@@ -69,12 +75,13 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     }
 
     @Override
-    public Response<String> apply(ProjectResource projectResource, GitReviewInput gitReviewInput) throws RestApiException {
+    public Response<GitReviewInfo> apply(ProjectResource projectResource, GitReviewInput gitReviewInput) throws RestApiException {
         log.info("Attempting to create gitreview file...");
 
         Project.NameKey name = new Project.NameKey(projectResource.getName());
 
         Repository repo = null;
+        GitReviewInfo info = null;
         try {
             repo = repoManager.openRepository(name);
 
@@ -88,7 +95,9 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
                 throw new BadRequestException("branch " + ref + " does not exist");
             }
 
-            createFileCommit(repo, name, ref);
+            // Create the gitreview file
+            info = createFileCommit(repo, name, ref);
+
         } catch (IOException ioe) {
             throw new RestApiException(ioe.getMessage());
         } finally {
@@ -97,16 +106,20 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             }
         }
         log.info("gitreview file created");
-        return Response.created("GitReview Response");
+        return Response.created(info);
     }
 
 
-    private void createFileCommit(Repository repo, Project.NameKey project, String refName) {
+    private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName) {
         log.info("Now entering the createFileCommit method");
+
+        GitReviewInfo info = null;
 
         try(ObjectInserter oi = repo.newObjectInserter()) {
 
             ObjectId parent = repo.getRef(denormalizeBranchName(refName)).getObjectId();
+
+            info = new GitReviewInfo(); // info to return on success
 
             // Contents of the file becomes a blob
             byte[] grFile = ("[" + GITREVIEW_REMOTE_NAME + "]\n" +
@@ -131,9 +144,16 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             cb.setTreeId(treeId);
             cb.setAuthor(metaDataUpdateFactory.getUserPersonIdent());
             cb.setCommitter(metaDataUpdateFactory.getUserPersonIdent());
-            cb.setMessage("Initial .gitreview file");
+            cb.setMessage(GITREVIEW_DEFAULT_COMMIT_MESSAGE);
+
+
+
             ObjectId commitId = oi.insert(cb);
             log.info("CommitID: " + commitId.getName());
+
+            // Get relevant info to send back to user
+            info.commitId = commitId.abbreviate(7).name();
+            info.commitMessage = cb.getMessage();
 
             // Flush to inform the framework of the commit
             oi.flush();
@@ -174,6 +194,8 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         } catch(IOException ioe) {
             log.error("Cannot create hello world commit", ioe);
         }
+
+        return info;
     }
 
     private String normalizeBranchName(String refName) {
