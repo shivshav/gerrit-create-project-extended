@@ -48,6 +48,7 @@ if [ !$IS_DEPLOYED ]; then
     docker run \
     --name $CONTAINER_NAME \
     -v $LOCAL_SITE:/var/gerrit/review_site \
+    -p 8998:8998 \
     -p 8080:8080 \
     -p 29418:29418 \
     -d \

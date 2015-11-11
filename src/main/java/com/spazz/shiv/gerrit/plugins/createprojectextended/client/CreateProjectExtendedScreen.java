@@ -36,7 +36,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         rightsPanel.add(new Button("Browse"));
         add(rightsPanel);
 
-        add(new CheckBox("Create initial empty commit"));
+        add(new CheckBox("Create initial commit"));
         add(new CheckBox("Only serve as parent for other projects"));
         add(new SubmitButton("Create Project"));
     }
