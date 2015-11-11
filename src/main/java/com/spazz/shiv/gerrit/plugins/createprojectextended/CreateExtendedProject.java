@@ -6,15 +6,15 @@ import com.google.gerrit.server.config.ConfigResource;
 import com.google.inject.Inject;
 
 import com.google.inject.assistedinject.Assisted;
-import com.spazz.shiv.gerrit.plugins.createprojectextended.TestCreateRest.Input;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.CreateExtendedProject.Input;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Created by shivneil on 11/8/15.
  */
-class TestCreateRest implements RestModifyView<ConfigResource, Input> {
-    private final static Logger log = LoggerFactory.getLogger(TestCreateRest.class);
+class CreateExtendedProject implements RestModifyView<ConfigResource, Input> {
+    private final static Logger log = LoggerFactory.getLogger(CreateExtendedProject.class);
 
     static class Input {
         String name;
@@ -22,17 +22,17 @@ class TestCreateRest implements RestModifyView<ConfigResource, Input> {
     }
 
     interface Factory {
-        TestCreateRest create(String projName);
+        CreateExtendedProject create(String projName);
     }
 
     private String pluginName;
     private String name;
 
     @Inject
-    TestCreateRest(@PluginName String pluginName,
-                   @Assisted String name) {
+    CreateExtendedProject(@PluginName String pluginName,
+                          @Assisted String name) {
         log.info("Constructor::hey it fired!");
-//        System.out.println("TestCreateRest::Constructor::Does this really fucking work!?!?");
+//        System.out.println("CreateExtendedProject::Constructor::Does this really fucking work!?!?");
 
         this.pluginName = pluginName;
         this.name = name;
@@ -43,7 +43,7 @@ class TestCreateRest implements RestModifyView<ConfigResource, Input> {
     public Response<String> apply(ConfigResource projectResource, Input createProjectExtendedInput)
             throws AuthException, BadRequestException, ResourceConflictException {
         log.info("apply::hey it fired!");
-        System.out.println("TestCreateRest::apply::Does this really fucking work!?!?");
+        System.out.println("CreateExtendedProject::apply::Does this really fucking work!?!?");
 
         if(createProjectExtendedInput.name != null  && !createProjectExtendedInput.name.matches(name)) {
             throw new BadRequestException("name must match URL");
