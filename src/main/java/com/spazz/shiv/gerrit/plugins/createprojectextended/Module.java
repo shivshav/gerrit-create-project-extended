@@ -14,16 +14,25 @@
 
 package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
+import static com.google.gerrit.server.config.ConfigResource.CONFIG_KIND;
+import static com.google.gerrit.server.project.ProjectResource.PROJECT_KIND;
+
+import static com.spazz.shiv.gerrit.plugins.createprojectextended.MyResource.MY_RESOURCE_KIND;
+
 import com.google.gerrit.extensions.events.GitReferenceUpdatedListener;
 import com.google.gerrit.extensions.events.LifecycleListener;
 import com.google.gerrit.extensions.events.NewProjectCreatedListener;
+import com.google.gerrit.extensions.registration.DynamicMap;
 import com.google.gerrit.extensions.registration.DynamicSet;
+import com.google.gerrit.extensions.restapi.RestApiModule;
 import com.google.gerrit.extensions.webui.TopMenu;
 import com.google.inject.AbstractModule;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.internal.UniqueAnnotations;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.client.CreateProjectExtendedMenuItem;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.CreateProjectExtendedManager;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.creategr.ProjectListenerTest;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitReview;
 
 class Module extends AbstractModule {
     @Override
@@ -43,5 +52,19 @@ class Module extends AbstractModule {
                 .bind(binder(), TopMenu.class)
                 .to(CreateProjectExtendedMenuItem.class);
 
+        install(new RestApiModule() {
+            @Override
+            protected void configure() {
+                DynamicMap.mapOf(binder(), MY_RESOURCE_KIND);
+                bind(CollectionTest.class);
+                child(CONFIG_KIND, "test").to(CollectionTest.class);
+                install(new FactoryModuleBuilder().build(TestCreateRest.Factory.class));
+//
+//                put(PROJECT_KIND, "gitreview")
+//                        .to(AddGitReview.class);
+//                put(PROJECT_KIND, "gitignore")
+//                        .to(AddGitIgnore.class);
+            }
+        });
     }
 }
