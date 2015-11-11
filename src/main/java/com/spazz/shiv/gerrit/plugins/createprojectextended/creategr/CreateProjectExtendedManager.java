@@ -37,10 +37,10 @@ public class CreateProjectExtendedManager implements LifecycleListener {
         log.info("CREATE_PROJECT_EXTENDED Plugin Unloaded");
     }
 
-    public static Map<String, ProjectListenerTest> getProjectsInCreation() {
-        if(projectsInCreation == null) {
-            projectsInCreation = new HashMap<>();
-        }
-        return projectsInCreation;
-    }
+//    public static Map<String, ProjectListenerTest> getProjectsInCreation() {
+//        if(projectsInCreation == null) {
+//            projectsInCreation = new HashMap<>();
+//        }
+//        return projectsInCreation;
+//    }
 }

@@ -44,12 +44,12 @@ class Module extends AbstractModule {
         bind(LifecycleListener.class)
                 .annotatedWith(UniqueAnnotations.create())
                 .to(CreateProjectExtendedManager.class);
-        bind(NewProjectCreatedListener.class)
-                .annotatedWith(UniqueAnnotations.create())
-                .to(ProjectListenerTest.class);
-        bind(GitReferenceUpdatedListener.class)
-                .annotatedWith(UniqueAnnotations.create())
-                .to(ProjectListenerTest.class);
+//        bind(NewProjectCreatedListener.class)
+//                .annotatedWith(UniqueAnnotations.create())
+//                .to(ProjectListenerTest.class);
+//        bind(GitReferenceUpdatedListener.class)
+//                .annotatedWith(UniqueAnnotations.create())
+//                .to(ProjectListenerTest.class);
         DynamicSet
                 .bind(binder(), TopMenu.class)
                 .to(CreateProjectExtendedMenuItem.class);
