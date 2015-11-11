@@ -86,7 +86,8 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         String message;
 
         if(Strings.isNullOrEmpty(gitReviewInput.branch)) {
-            ref = Constants.R_HEADS + Constants.HEAD;
+            ref = Constants.HEAD;
+            log.info("branch specification not found. Using " + Constants.HEAD);
         } else {
             ref = gitReviewInput.branch;
         }
