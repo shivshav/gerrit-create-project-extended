@@ -83,15 +83,23 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
         if(Strings.isNullOrEmpty(gitIgnoreInput.commitMessage)) {
             // Build default message with templates given
             StringBuilder sb = new StringBuilder(GITIGNORE_DEFAULT_COMMIT_MESSAGE).append(" with ");
-            String template = null;
-            for (ListIterator<String> it = gitIgnoreTemplates.listIterator(); it.hasNext(); template = it.next()) {
+
+            String template;
+            ListIterator<String> it = gitIgnoreTemplates.listIterator();
+            while(it.hasNext()) {
+                template = it.next();
                 sb.append(template);
+
+                // Check if we are at the end of the template list for formatting;
                 if(it.hasNext()) {
                     sb.append(", ");
                 } else {
-                    sb.append(" templates");
+                    sb.append(" templates.");
                 }
             }
+
+
+
             commitMessage = sb.toString();
         } else {// Use custom commit message
             commitMessage = gitIgnoreInput.commitMessage;

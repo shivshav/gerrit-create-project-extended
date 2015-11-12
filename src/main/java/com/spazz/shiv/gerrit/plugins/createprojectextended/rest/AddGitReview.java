@@ -87,7 +87,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         String ref;
         String message;
 
-        // Check if branc parameter is null or empty
+        // Check if branch parameter is null or empty
         if(Strings.isNullOrEmpty(gitReviewInput.branch)) {
             ref = Constants.HEAD;
             log.info("branch specification not found. Using " + Constants.HEAD);
@@ -115,6 +115,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
             ref = GitUtil.denormalizeBranchName(ref);
 
+            // TODO: Use the method from GitUtil
             // Create the gitreview file
             info = createFileCommit(repo, name, ref, message);
 
