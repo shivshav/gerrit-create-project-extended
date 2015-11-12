@@ -1,11 +1,11 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
+import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.BadRequestException;
+import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
-import org.eclipse.jgit.lib.Constants;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +27,76 @@ public class GitUtil {
         if(objId == null) {
             throw new InvalidRefNameException("branch " + ref + " does not exist");
         }
+    }
+
+    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer, String refName, String filename, String fileContents, String commitMessage) {
+        log.info("Now entering the createFileCommit method");
+
+        CommitInfo info = null;
+        try(ObjectInserter oi = repo.newObjectInserter()) {
+
+            String branchRefsHeads = GitUtil.denormalizeBranchName(refName);
+            String branchAlone = GitUtil.normalizeBranchName(refName);
+
+            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
+
+            info = new CommitInfo(); // info to return on success
+
+            // Contents of the file becomes a blob
+            byte[] grFile = fileContents.getBytes();
+
+            // Create the file blob reference on the Git tree
+            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, grFile, 0, grFile.length);
+            log.info("FileID: " + fileId.getName());
+
+            // Add a tree object that represents the filename and metadata
+            TreeFormatter formatter = new TreeFormatter();
+            formatter.append(filename, FileMode.REGULAR_FILE, fileId);
+            ObjectId treeId = oi.insert(formatter);
+            log.info("TreeID: " + treeId.getName());
+
+            // Commit the changes to the repo i.e. attach our local leaf to the repo tree
+            PersonIdent person = new PersonIdent(repo);
+            CommitBuilder cb = new CommitBuilder();
+            cb.setParentId(parent);
+            cb.setTreeId(treeId);
+            cb.setAuthor(committer);
+            cb.setCommitter(committer);
+            cb.setMessage(commitMessage);
+            ObjectId commitId = oi.insert(cb);
+            log.info("CommitID: " + commitId.getName());
+
+            // Get relevant info to send back to user
+            info.commit = commitId.abbreviate(7).name();
+            info.message = cb.getMessage();
+
+            // Flush to inform the framework of the commit
+            oi.flush();
+
+            RefUpdate ru = repo.updateRef(branchRefsHeads);
+//            ru.setForceUpdate(true);
+            ru.setRefLogIdent(committer);
+            ru.setNewObjectId(commitId);
+//            ru.setExpectedOldObjectId(ObjectId.zeroId());
+            ru.setRefLogMessage("commit: " + commitMessage, false);
+
+            RefUpdate.Result result = ru.update();
+            log.info("Result: " + result.name());
+            switch (result) {
+                case NEW:
+//                    referenceUpdated.fire(project, ru);
+                    break;
+                case FAST_FORWARD:
+                    break;
+                default: {
+                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
+                }
+            }
+        } catch(IOException ioe) {
+            log.error("Unable to create commit", ioe);
+        }
+
+        return info;
     }
 
     public static String normalizeBranchName(String refName, boolean ignoreHead) {

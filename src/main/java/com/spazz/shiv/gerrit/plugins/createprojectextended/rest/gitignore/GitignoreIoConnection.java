@@ -61,10 +61,11 @@ public class GitignoreIoConnection {
         response = getClient().execute(getReq);
         HttpEntity entity = response.getEntity();
 
+        String respString = EntityUtils.toString(entity);
         log.info("****************Begin GitIgnore Response*****************");
-        log.info(EntityUtils.toString(entity));
+        log.info(respString);
         log.info("****************End GitIgnore Response*****************");
 
-        return EntityUtils.toString(entity);
+        return respString;
     }
 }
