@@ -16,6 +16,7 @@ import com.google.inject.Inject;
 
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject.ExtendedProjectInput;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -97,7 +98,7 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
                 log.info("Attempting to move HEAD to " + extendedProjectInput.head);
                 Project.NameKey nameKey = new Project.NameKey(name);
                 Repository repo = repositoryManager.openRepository(nameKey);
-                info.head = updateHead(repo, extendedProjectInput.head, true, false);
+                info.head = updateHead(repo, extendedProjectInput.head, false, false);
             }
         } catch (RestApiException rae) {
             log.error(rae.getMessage());
@@ -137,15 +138,17 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
         RefUpdate refUpdate = repo.getRefDatabase().newUpdate(Constants.HEAD, detach);
         refUpdate.setForceUpdate(force);
 
+        newHead = GitUtil.denormalizeBranchName(newHead, false);
         RefUpdate.Result res = refUpdate.link(newHead);
 
         String resStr;
         switch (res){
+            case FAST_FORWARD:
             case NEW:
-                resStr = "Success";
+                resStr = "Success:" + res.name();
                 break;
             default:
-                resStr = res.name();
+                resStr = "Error:" + res.name();
                 break;
         }
         log.info("Result of updating the HEAD was " + resStr);

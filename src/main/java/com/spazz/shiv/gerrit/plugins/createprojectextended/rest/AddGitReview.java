@@ -11,6 +11,7 @@ import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.ProjectResource;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import org.eclipse.jgit.lib.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +108,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         try {
             repo = repoManager.openRepository(name);
 
-            ref = denormalizeBranchName(ref);
+            ref = GitUtil.denormalizeBranchName(ref);
             if(!ref.matches(Constants.HEAD) && !Repository.isValidRefName(ref)) {
                 throw new BadRequestException(ref + " is not a valid refname!");
             }
@@ -139,7 +140,10 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
         try(ObjectInserter oi = repo.newObjectInserter()) {
 
-            ObjectId parent = repo.getRef(denormalizeBranchName(refName)).getObjectId();
+            String branchRefsHeads = GitUtil.denormalizeBranchName(refName);
+            String branchAlone = GitUtil.normalizeBranchName(refName);
+
+            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
 
             info = new GitReviewInfo(); // info to return on success
 
@@ -148,8 +152,9 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
                     GITREVIEW_HOST_KEY + webUrl + "\n" +
                     GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
                     GITREVIEW_PROJECT_KEY + project.get() + ".git" + "\n" +
-                    GITREVIEW_DEFAULT_BRANCH_KEY + normalizeBranchName(refName) + "\n").getBytes();
+                    GITREVIEW_DEFAULT_BRANCH_KEY + branchAlone + "\n").getBytes();
 
+            // Create the file blob for the Git tree
             ObjectId fileId = oi.insert(Constants.OBJ_BLOB, grFile, 0, grFile.length);
             log.info("FileID: " + fileId.getName());
 
@@ -177,7 +182,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             // Flush to inform the framework of the commit
             oi.flush();
 
-            RefUpdate ru = repo.updateRef(denormalizeBranchName(refName));
+            RefUpdate ru = repo.updateRef(branchRefsHeads);
 //            ru.setForceUpdate(true);
             ru.setRefLogIdent(metaDataUpdateFactory.getUserPersonIdent());
             ru.setNewObjectId(commitId);
@@ -215,39 +220,5 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         }
 
         return info;
-    }
-
-    private String normalizeBranchName(String refName) {
-//        if(refName.matches(Constants.HEAD)) {
-//            return refName;
-//        }
-
-        refName = refName.replace(Constants.R_HEADS, "");
-        while(refName.startsWith("/")) {
-            refName = refName.substring(1);
-        }
-
-        log.info("normalizeBranchName::refname was " + refName);
-        return refName;
-    }
-
-    private String denormalizeBranchName(String refname) {
-
-        if(refname.matches(Constants.HEAD)) {
-            log.info("denormalizeBranchName::refname was " + refname);
-            return refname;
-        }
-
-        // remove all prepended slashes
-        while (refname.startsWith("/")) {
-            refname = refname.substring(1);
-        }
-
-        // If it doesn't begin with refs/heads/ make it so...
-        if(!refname.startsWith(Constants.R_HEADS)) {
-            refname = Constants.R_HEADS + refname;
-        }
-        log.info("denormalizeBranchName::refname was " + refname);
-        return refname;
     }
 }
