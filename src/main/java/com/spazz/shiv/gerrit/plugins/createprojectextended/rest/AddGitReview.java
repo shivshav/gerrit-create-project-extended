@@ -12,6 +12,7 @@ import com.google.gerrit.server.project.ProjectResource;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
+import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.lib.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +87,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         String ref;
         String message;
 
+        // Check if branc parameter is null or empty
         if(Strings.isNullOrEmpty(gitReviewInput.branch)) {
             ref = Constants.HEAD;
             log.info("branch specification not found. Using " + Constants.HEAD);
@@ -93,6 +95,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             ref = gitReviewInput.branch;
         }
 
+        // Check if commit message is null or empty
         if(Strings.isNullOrEmpty(gitReviewInput.message)) {
             message = GITREVIEW_DEFAULT_COMMIT_MESSAGE;
             log.info("Commit message not found in data. Using default message");
@@ -108,21 +111,17 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         try {
             repo = repoManager.openRepository(name);
 
-            ref = GitUtil.denormalizeBranchName(ref);
-            if(!ref.matches(Constants.HEAD) && !Repository.isValidRefName(ref)) {
-                throw new BadRequestException(ref + " is not a valid refname!");
-            }
+            GitUtil.validateBranch(repo, ref);
 
-            ObjectId objId = repo.resolve(ref);
-            if(objId == null) {
-                throw new BadRequestException("branch " + ref + " does not exist");
-            }
+            ref = GitUtil.denormalizeBranchName(ref);
 
             // Create the gitreview file
             info = createFileCommit(repo, name, ref, message);
 
         } catch (IOException ioe) {
             throw new RestApiException(ioe.getMessage());
+        } catch (InvalidRefNameException irne) {
+            throw new BadRequestException(irne.getMessage());
         } finally {
             if(repo != null) {
                 repo.close();
