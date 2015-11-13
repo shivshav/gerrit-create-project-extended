@@ -43,15 +43,15 @@ public class ExtendedProjectCollection implements
                               Provider<CurrentUser> user,
                               Provider<ListExtendedProjects> list,
                               @PluginName String pluginName) {
-        log.info("********************BEGIN TRACE*********************");
-        log.info("Constructor::hey it fired!");
+//        log.info("********************BEGIN TRACE*********************");
+//        log.info("Constructor::hey it fired!");
 //        System.out.println("ExtendedProjectCollection::Constructor::Does this really fucking work!?!?");
-        if (createExtendedProjectFactory == null) {
-            log.info("Constructor::createExtendedProjectFactory was null");
-        }
-        else {
-            log.info("Constructor::createExtendedProjectFactory was not null!!!");
-        }
+//        if (createExtendedProjectFactory == null) {
+//            log.info("Constructor::createExtendedProjectFactory was null");
+//        }
+//        else {
+//            log.info("Constructor::createExtendedProjectFactory was not null!!!");
+//        }
         this.views = views;
         this.createExtendedProjectFactory = createExtendedProjectFactory;
         this.controlFactory = controlFactory;
@@ -62,14 +62,14 @@ public class ExtendedProjectCollection implements
 
     @Override
     public RestView<ConfigResource> list() {
-        log.info("list::hey it fired!");
+//        log.info("list::hey it fired!");
         return list.get();
     }
 
     @Override
     public ExtendedProjectResource parse(ConfigResource configResource, IdString idString)
             throws ResourceNotFoundException, IOException {
-        log.info("parse::hey it fired!");
+//        log.info("parse::hey it fired!");
 //        System.out.println("ExtendedProjectCollection::parse::Does this really fucking work!?!?");
 //
 //        log.info("parse::********************BEGINVIEWS*******************");
@@ -78,13 +78,14 @@ public class ExtendedProjectCollection implements
 //        }
 //        log.info("parse::********************ENDVIEWS*******************");
 
-        log.info("parse::idString is " + idString.get());
+//        log.info("parse::idString is " + idString.get());
 
         ProjectControl ctl;
         try {
             ctl = controlFactory.controlFor(new Project.NameKey(idString.get()), user.get());
         } catch (NoSuchProjectException nspe) {
-            log.info("parse::we WILL be throwing the exception");
+//            log.info("parse::we WILL be throwing the exception");
+            log.info("Project does not exist");
             throw new ResourceNotFoundException(idString);
         }
 
@@ -100,7 +101,8 @@ public class ExtendedProjectCollection implements
     @SuppressWarnings("unchecked")
     public CreateExtendedProject create(ConfigResource projectResource, IdString idString) {
 //        System.out.println("ExtendedProjectCollection::create::Does this really fucking work!?!?");
-        log.info("create::hey it fired!");
+//        log.info("create::hey it fired!");
+        log.info("Attempting to create new extended project");
         return createExtendedProjectFactory.create(idString.get());
     }
 }

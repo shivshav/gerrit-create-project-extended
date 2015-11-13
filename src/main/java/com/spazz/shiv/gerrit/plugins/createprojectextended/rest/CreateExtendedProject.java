@@ -11,6 +11,8 @@ import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.ConfigResource;
 import com.google.gerrit.server.git.GitRepositoryManager;
+import com.google.gerrit.server.project.ProjectResource;
+import com.google.gerrit.server.project.ProjectsCollection;
 import com.google.gwtorm.server.OrmException;
 import com.google.inject.Inject;
 
@@ -27,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Created by shivneil on 11/8/15.
@@ -37,11 +38,14 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
 
     private final static Logger log = LoggerFactory.getLogger(CreateExtendedProject.class);
     private final GitRepositoryManager repositoryManager;
+    private final Provider<AddGitReview> gitReviewProvider;
+    private final Provider<AddGitIgnore> gitIgnoreProvider;
+    private final Provider<ProjectsCollection> projectProvider;
 
     static class ExtendedProjectInput extends ProjectInput {
         String head;
-        boolean gitreview;
-        List<String> gitignoreTemplates;
+        AddGitReview.GitReviewInput gitReview;
+        AddGitIgnore.GitIgnoreInput gitIgnore;
     }
 
     public interface Factory {
@@ -57,21 +61,29 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
     CreateExtendedProject(@PluginName String pluginName,
                           @Assisted String name,
                           Provider<CurrentUser> currentUserProvider,
+                          Provider<ProjectsCollection> projectsProvider,
                           GerritApi api,
+                          Provider<AddGitReview> gitReviewProvider,
+                          Provider<AddGitIgnore> gitIgnoreProvider,
                           GitRepositoryManager repositoryManager) {
-        log.info("Constructor::hey it fired!");
+//        log.info("Constructor::hey it fired!");
 
         this.pluginName = pluginName;
         this.name = name;
         this.currentUserProvider = currentUserProvider;
+        if(projectsProvider == null) {
+            log.error("Hey the projectsProvider was null!");
+        }
+        this.projectProvider = projectsProvider;
         this.api = api;
+        this.gitReviewProvider = gitReviewProvider;
+        this.gitIgnoreProvider = gitIgnoreProvider;
         this.repositoryManager = repositoryManager;
     }
 
     @Override
     public Response<ExtendedProjectInfo> apply(ConfigResource configResource, ExtendedProjectInput extendedProjectInput)
             throws RestApiException, OrmException {
-        log.info("apply::hey it fired!");
 
         // Make sure we have a valid user
         CurrentUser user = currentUserProvider.get();
@@ -91,44 +103,70 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
 
         // Create the project through the Gerrit REST API
         ExtendedProjectInfo info = new ExtendedProjectInfo();
-        try {
-            info.projectInfo = api.projects().name(name).create(extendedProjectInput).get();
 
-            if(extendedProjectInput.head != null) {
-                log.info("Attempting to move HEAD to " + extendedProjectInput.head);
-                Project.NameKey nameKey = new Project.NameKey(name);
-                Repository repo = repositoryManager.openRepository(nameKey);
-                info.head = updateHead(repo, extendedProjectInput.head, false, false);
-            }
+        Project.NameKey nameKey = new Project.NameKey(name);
+        try {
+            log.info("Creating new extended project " + name);
+            info.projectInfo = api.projects().name(name).create(extendedProjectInput).get();
+            log.info("Project Created");
+
         } catch (RestApiException rae) {
             log.error(rae.getMessage());
             throw rae;
-        } catch (RepositoryNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new OrmException("Unable to read from the repository");
         }
 
         // Only check extended input params if user wants to create empty commits.
         // Should maintain compatibility with official API
+        log.info("Create Empty Commit is..." + extendedProjectInput.createEmptyCommit);
+
         if(extendedProjectInput.createEmptyCommit) {
+            log.info("Empty commit was created");
 
-            // Do GitReview stuff
-            StringBuilder sb = new StringBuilder("GitReview:")
-                    .append(extendedProjectInput.gitreview);
-            info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
-
-            // Do GitIgnore stuff
-            if (extendedProjectInput.gitignoreTemplates != null) {
-                sb.append(", GitIgnore Templates:");
-                info.gitignoreCommit = "a09s8d: Added .gitignore file";
-
-                for (String template : extendedProjectInput.gitignoreTemplates) {
-                    sb.append(" ").append(template);
+            // Move head before we make any commits
+            if(extendedProjectInput.head != null) {
+                try {
+                    log.info("Attempting to move HEAD to " + extendedProjectInput.head);
+                    Repository repo = repositoryManager.openRepository(nameKey);
+                    info.head = updateHead(repo, extendedProjectInput.head, false, false);
+                } catch (RepositoryNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new OrmException("Unable to read from the repository");
                 }
             }
-            log.info("Extended Project Arguments: " + sb.toString());
+
+            ProjectResource createdProject = null;
+            // Do GitReview stuff
+
+            if(extendedProjectInput.gitReview != null) {
+                log.info("Adding gitreview to " + name);
+                try {
+                    createdProject = projectProvider.get().parse(name);
+                    Response<AddGitReview.GitReviewInfo> reviewInfoResponse = gitReviewProvider.get().apply(createdProject, extendedProjectInput.gitReview);
+                    info.gitReviewInfo = reviewInfoResponse.value();
+                } catch (IOException ioe) {
+
+                }
+//                StringBuilder sb = new StringBuilder("GitReview:")
+//                        .append(extendedProjectInput.gitreview);
+//                info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
+            }
+
+            // Do GitIgnore stuff
+            if (extendedProjectInput.gitIgnore != null) {
+                log.info("Adding gitreview to " + name);
+                if(createdProject == null) {
+                    try {
+                        createdProject = projectProvider.get().parse(name);
+                    } catch (IOException ioe) {
+
+                    }
+                }
+                Response<AddGitIgnore.GitIgnoreInfo> gitIgnoreInfoResponse = gitIgnoreProvider.get().apply(createdProject, extendedProjectInput.gitIgnore);
+                info.gitignoreInfo = gitIgnoreInfoResponse.value();
+
+            }
         }
 
         return Response.created(info);

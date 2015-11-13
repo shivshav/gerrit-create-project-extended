@@ -1,6 +1,8 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
 import com.google.gerrit.extensions.common.ProjectInfo;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitIgnore;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitReview;
 
 import java.lang.reflect.Field;
 
@@ -9,8 +11,7 @@ import java.lang.reflect.Field;
  */
 public class ExtendedProjectInfo {
     public ProjectInfo projectInfo;
-    public String gitreviewCommit;
-    public String gitignoreCommit;
-
+    public AddGitReview.GitReviewInfo gitReviewInfo;
+    public AddGitIgnore.GitIgnoreInfo gitignoreInfo;
     public String head;
 }

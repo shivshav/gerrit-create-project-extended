@@ -1,7 +1,11 @@
 {
     "branches":["master","refs/heads/develop"],
     "create_empty_commit":"true",
-    "gitreview":"true",
-    "gitignore_templates":["java","python"],
+    "git_review": {
+    },
+    "git_ignore": {
+        "gitignoreio_templates":["java","python"],
+        "show_file":"true"
+    },
     "head":"refs/heads/develop"
 }

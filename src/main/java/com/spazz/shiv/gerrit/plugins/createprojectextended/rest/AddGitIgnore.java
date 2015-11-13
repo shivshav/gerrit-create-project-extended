@@ -4,6 +4,7 @@ import com.google.common.base.Strings;
 import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.extensions.restapi.Response;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.ProjectResource;
@@ -29,6 +30,8 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
     private static final Logger log = LoggerFactory.getLogger(AddGitIgnore.class);
     private static final String GITIGNORE_FILENAME = ".gitignore";
     private static final String GITIGNORE_DEFAULT_COMMIT_MESSAGE = "Added .gitignore file";
+    private final GitReferenceUpdated referenceUpdated;
+
     static class GitIgnoreInput {
         String branch;
         List<String> gitignoreioTemplates;
@@ -36,7 +39,7 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
         boolean showFile;
     }
 
-    static class GitIgnoreInfo {
+    public static class GitIgnoreInfo {
         String commitId;
         String commitMessage;
         String ignoreFile;
@@ -46,13 +49,15 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
     private final MetaDataUpdate.User metaDataUpdateFactory;
     @Inject
     AddGitIgnore(GitRepositoryManager repoManager,
+                 GitReferenceUpdated referenceUpdated,
                  MetaDataUpdate.User metaDataUpdateFactory) {
         this.repoManager = repoManager;
+        this.referenceUpdated = referenceUpdated;
         this.metaDataUpdateFactory = metaDataUpdateFactory;
     }
 
     @Override
-    public Object apply(ProjectResource projectResource, GitIgnoreInput gitIgnoreInput) throws AuthException, BadRequestException, ResourceConflictException, ResourceNotFoundException, UnprocessableEntityException {
+    public Response<GitIgnoreInfo> apply(ProjectResource projectResource, GitIgnoreInput gitIgnoreInput) throws AuthException, BadRequestException, ResourceConflictException, ResourceNotFoundException, UnprocessableEntityException {
 
         String gitIgnoreBranch;
         List<String> gitIgnoreTemplates;
@@ -133,7 +138,7 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
 
             // TODO: Commit said file into git repo
             CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), gitIgnoreBranch,
-                    GITIGNORE_FILENAME, ignoreFileContents, commitMessage);
+                    GITIGNORE_FILENAME, ignoreFileContents, commitMessage, referenceUpdated, projectResource.getNameKey());
 
             // Build our response
             info = new GitIgnoreInfo();

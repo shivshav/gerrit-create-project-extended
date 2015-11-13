@@ -3,6 +3,7 @@ package com.spazz.shiv.gerrit.plugins.createprojectextended;
 import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.BadRequestException;
 import com.google.gerrit.reviewdb.client.Project;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.lib.*;
@@ -29,7 +30,7 @@ public class GitUtil {
         }
     }
 
-    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer, String refName, String filename, String fileContents, String commitMessage) {
+    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer, String refName, String filename, String fileContents, String commitMessage, GitReferenceUpdated referenceUpdated, Project.NameKey key) {
         log.info("Now entering the createFileCommit method");
 
         CommitInfo info = null;
@@ -84,9 +85,9 @@ public class GitUtil {
             log.info("Result: " + result.name());
             switch (result) {
                 case NEW:
-//                    referenceUpdated.fire(project, ru);
-                    break;
                 case FAST_FORWARD:
+                case FORCED:
+                    referenceUpdated.fire(key, ru);
                     break;
                 default: {
                     throw new IOException(String.format("Failed to create ref: %s", result.name()));

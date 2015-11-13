@@ -6,6 +6,7 @@ import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.CanonicalWebUrl;
 import com.google.gerrit.server.config.ConfigResource;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.ProjectResource;
@@ -49,6 +50,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     private final GitRepositoryManager repoManager;
     private final Provider<CurrentUser> userProvider;
     private final MetaDataUpdate.User metaDataUpdateFactory;
+    private final GitReferenceUpdated referenceUpdated;
 
 
     static class GitReviewInput {
@@ -56,7 +58,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         String message;
     }
 
-    static class GitReviewInfo {
+    public static class GitReviewInfo {
         String commitId;
         String commitMessage;
     }
@@ -64,10 +66,12 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
     @Inject
     AddGitReview(@CanonicalWebUrl String webUrl,
                  GitRepositoryManager repoManager,
+                 GitReferenceUpdated referenceUpdated,
                  Provider<CurrentUser> userProvider,
                  MetaDataUpdate.User metaDataUpdateFactory) {
         this.webUrl = webUrl;
         this.repoManager = repoManager;
+        this.referenceUpdated = referenceUpdated;
         this.userProvider = userProvider;
         this.metaDataUpdateFactory = metaDataUpdateFactory;
 
