@@ -1,6 +1,7 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.rest.gitignore;
 
 import com.google.gwt.http.client.Request;
+import com.google.gwt.user.client.rpc.core.java.util.HashSet_CustomFieldSerializer;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -15,9 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
 /**
  * Created by shivneil on 11/11/15.
@@ -67,5 +66,24 @@ public class GitignoreIoConnection {
         log.info("****************End GitIgnore Response*****************");
 
         return respString;
+    }
+
+    public HashSet<String> getTemplateList() throws IOException {
+        String url = GITIGNOREIO_BASEURL + "list";
+        HttpGet getReq = new HttpGet(url);
+        getReq.addHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_TEXT_PLAIN);
+        CloseableHttpResponse response;
+        log.info("Awaiting response...");
+        response = getClient().execute(getReq);
+        HttpEntity entity = response.getEntity();
+
+        String respString = EntityUtils.toString(entity);
+        log.info("****************Begin GitIgnore Response*****************");
+        log.info(respString);
+        log.info("****************End GitIgnore Response*****************");
+
+
+        return new HashSet<>(Arrays.asList(respString.split(",")));
+
     }
 }

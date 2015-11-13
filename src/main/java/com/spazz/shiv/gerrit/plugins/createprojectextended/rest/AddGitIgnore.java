@@ -6,10 +6,7 @@ import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
-import com.google.gerrit.server.mail.EmailHeader;
 import com.google.gerrit.server.project.ProjectResource;
-import com.google.gwt.http.client.*;
-import com.google.gwt.xhr.client.XMLHttpRequest;
 import com.google.inject.Inject;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.gitignore.GitignoreIoConnection;
@@ -21,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
 
@@ -77,7 +75,19 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
             gitIgnoreTemplates = gitIgnoreInput.gitignoreioTemplates;
         }
 
+        //Check if templates given are valid against gitignore.io values
         // TODO: Keep a cache of gitignore templates to check against on requests
+        try {
+            HashSet<String> validTemplates = requestGitignoreIoTemplates();
+            for (String template :
+                    gitIgnoreTemplates) {
+                if(!validTemplates.contains(template)) {
+                    throw new UnprocessableEntityException(template + "is not a valid template");
+                }
+            }
+        } catch (IOException ioe) {
+            throw new UnprocessableEntityException(ioe.getMessage());
+        }
 
         // Check for custom commit message
         if(Strings.isNullOrEmpty(gitIgnoreInput.commitMessage)) {
@@ -156,6 +166,15 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
             return connection.getGitIgnoreFile(templates);
         } catch (IOException ioe) {
             throw new IOException("Error accessing gitignore.io\n" + ioe.getMessage());
+        }
+    }
+
+    private HashSet<String> requestGitignoreIoTemplates() throws IOException {
+        GitignoreIoConnection connection = new GitignoreIoConnection();
+        try {
+            return connection.getTemplateList();
+        } catch (IOException ioe) {
+            throw new IOException("Error retrieving template list from gitignore.io\n" + ioe.getMessage());
         }
     }
 }
