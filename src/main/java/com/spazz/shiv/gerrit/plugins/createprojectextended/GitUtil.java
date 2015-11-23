@@ -289,7 +289,7 @@ public class GitUtil {
     }
 
     public static String denormalizeBranchName(String refName, boolean ignoreHead) {
-
+        //TODO: I need to make sure this always spits back HEAD for those cases which apply
         if(ignoreHead && refName.matches(Constants.HEAD)) {
             log.info("denormalizeBranchName::refName was " + refName);
             return refName;
@@ -307,7 +307,7 @@ public class GitUtil {
     }
 
     public static String normalizeBranchName(String refName, boolean ignoreHead) {
-
+        //TODO: I need to make sure this always spits back HEAD for those cases
         if(ignoreHead && refName.matches(Constants.HEAD)) {
             log.info("normalizeBranchName::refName was " + refName);
             return refName;

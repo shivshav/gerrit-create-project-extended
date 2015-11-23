@@ -1,4 +1,4 @@
-package com.spazz.shiv.gerrit.plugins.createprojectextended;
+package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import com.google.gerrit.extensions.common.ProjectInfo;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.AddGitIgnore;
