@@ -12,6 +12,7 @@ import com.google.inject.Inject;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.gitignore.GitignoreIoConnection;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.Repository;
@@ -158,10 +159,10 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
         } catch (RepositoryNotFoundException e) {
             log.error("Repository not found for " + projectResource.getName());
             throw new ResourceConflictException("Repository not found for " + projectResource.getName());
+        } catch (InvalidRefNameException | RefNotFoundException irne) {
+            throw new BadRequestException(irne.getMessage());
         } catch (IOException ioe) {
             throw new UnprocessableEntityException(ioe.getMessage());
-        } catch (InvalidRefNameException irne) {
-            throw new BadRequestException(irne.getMessage());
         } finally {
             if(repo != null) {
                 repo.close();

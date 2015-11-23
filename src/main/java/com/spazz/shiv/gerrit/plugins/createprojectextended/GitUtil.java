@@ -6,6 +6,7 @@ import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.dircache.DirCache;
 import org.eclipse.jgit.dircache.DirCacheBuilder;
 import org.eclipse.jgit.dircache.DirCacheEntry;
@@ -25,17 +26,25 @@ import java.util.Map;
  * Created by shivneil on 11/11/15.
  */
 public class GitUtil {
+
+
     private static final Logger log = LoggerFactory.getLogger(GitUtil.class);
 
-    public static void validateBranch(Repository repo, String ref) throws InvalidRefNameException, IOException {
+    public static void validateBranch(Repository repo, String ref) throws InvalidRefNameException, RefNotFoundException, IOException {
         ref = GitUtil.denormalizeBranchName(ref);
         if(!ref.matches(Constants.HEAD) && !Repository.isValidRefName(ref)) {
             throw new InvalidRefNameException(ref + " is not a valid refname!");
         }
 
-        ObjectId objId = repo.resolve(ref);
-        if(objId == null) {
-            throw new InvalidRefNameException("branch " + ref + " does not exist");
+        try {
+            ObjectId objId = repo.resolve(ref);
+            if (objId == null) {
+                throw new RefNotFoundException("branch " + ref + " does not exist");
+            }
+        } catch (RefNotFoundException rnfe) {
+            throw new RefNotFoundException("branch " + ref + " does not exist");
+        } catch (IOException ioe) {
+            throw new IOException("IOException" + ioe.getMessage());
         }
     }
 
@@ -279,28 +288,28 @@ public class GitUtil {
         return info;
     }
 
-    public static String normalizeBranchName(String refName, boolean ignoreHead) {
+    public static String denormalizeBranchName(String refName, boolean ignoreHead) {
 
         if(ignoreHead && refName.matches(Constants.HEAD)) {
-            log.info("normalizeBranchName::refName was " + refName);
+            log.info("denormalizeBranchName::refName was " + refName);
             return refName;
         }
 
         refName = removePrecedingSlashes(refName);
         refName = refName.replace(Constants.R_HEADS, "");
 
-        log.info("normalizeBranchName::refname was " + refName);
+        log.info("denormalizeBranchName::refname was " + refName);
         return refName;
     }
 
-    public static String normalizeBranchName(String refName) {
-        return GitUtil.normalizeBranchName(refName, true);
+    public static String denormalizeBranchName(String refName) {
+        return GitUtil.denormalizeBranchName(refName, true);
     }
 
-    public static String denormalizeBranchName(String refName, boolean ignoreHead) {
+    public static String normalizeBranchName(String refName, boolean ignoreHead) {
 
         if(ignoreHead && refName.matches(Constants.HEAD)) {
-            log.info("denormalizeBranchName::refName was " + refName);
+            log.info("normalizeBranchName::refName was " + refName);
             return refName;
         }
 
@@ -310,12 +319,12 @@ public class GitUtil {
         if(!refName.startsWith(Constants.R_HEADS)) {
             refName = Constants.R_HEADS + refName;
         }
-        log.info("denormalizeBranchName::refName was " + refName);
+        log.info("normalizeBranchName::refName was " + refName);
         return refName;
     }
 
-    public static String denormalizeBranchName(String refName) {
-        return GitUtil.denormalizeBranchName(refName, true);
+    public static String normalizeBranchName(String refName) {
+        return GitUtil.normalizeBranchName(refName, true);
     }
 
     private static String removePrecedingSlashes(String refName) {

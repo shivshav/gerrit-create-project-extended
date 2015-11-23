@@ -15,6 +15,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.lib.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,10 +140,12 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
 //            info = createFileCommit(repo, name, ref, message);
 
-        } catch (IOException ioe) {
-            throw new RestApiException(ioe.getMessage());
+        } catch (RefNotFoundException rnfe) {
+            throw new BadRequestException(rnfe.getMessage());
         } catch (InvalidRefNameException irne) {
             throw new BadRequestException(irne.getMessage());
+        } catch (IOException ioe) {
+            throw new RestApiException(ioe.getMessage());
         } finally {
             if(repo != null) {
                 repo.close();
