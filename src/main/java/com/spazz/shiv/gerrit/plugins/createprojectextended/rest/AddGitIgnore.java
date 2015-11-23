@@ -19,9 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
 /**
  * Created by shivneil on 11/8/15.
@@ -94,9 +92,9 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
             throw new UnprocessableEntityException(ioe.getMessage());
         }
 
-        // Check for custom commit message
+        // Check for custom commit commitMessage
         if(Strings.isNullOrEmpty(gitIgnoreInput.commitMessage)) {
-            // Build default message with templates given
+            // Build default commitMessage with templates given
             StringBuilder sb = new StringBuilder(GITIGNORE_DEFAULT_COMMIT_MESSAGE).append(" with ");
 
             String template;
@@ -116,7 +114,7 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
 
 
             commitMessage = sb.toString();
-        } else {// Use custom commit message
+        } else {// Use custom commit commitMessage
             commitMessage = gitIgnoreInput.commitMessage;
         }
 
@@ -136,10 +134,16 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
             // Request file from gitignore.io
             ignoreFileContents = requestFromGitignoreIO(gitIgnoreTemplates);
 
-            // TODO: Commit said file into git repo
-            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), gitIgnoreBranch,
-                    GITIGNORE_FILENAME, ignoreFileContents, commitMessage, referenceUpdated, projectResource.getNameKey());
-
+//            // TODO: Commit said file into git repo
+            Map<String, String> ignoreMap = new HashMap<>();
+            ignoreMap.put("refName", gitIgnoreBranch);
+            ignoreMap.put("filename", GITIGNORE_FILENAME);
+            ignoreMap.put("fileContents", ignoreFileContents);
+            ignoreMap.put("commitMessage", commitMessage);
+//            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), gitIgnoreBranch,
+//                    GITIGNORE_FILENAME, ignoreFileContents, commitMessage, referenceUpdated, projectResource.getNameKey());
+            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), referenceUpdated, projectResource.getNameKey(), ignoreMap);
+//            CommitInfo cInfo = new CommitInfo();
             // Build our response
             info = new GitIgnoreInfo();
             info.commitId = cInfo.commit;
