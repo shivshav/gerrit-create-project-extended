@@ -2,8 +2,12 @@
     "branches":["master","refs/heads/develop"],
     "create_empty_commit":"true",
     "git_review": {
+        "branch":"master",
+        "commit_message":"Default review file"
     },
     "git_ignore": {
+        "branch":"master",
+        "commit_message":"Default ignore file",
         "gitignoreio_templates":["java","python"],
         "show_file":"true"
     },

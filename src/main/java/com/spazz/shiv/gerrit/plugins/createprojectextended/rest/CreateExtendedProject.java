@@ -6,11 +6,14 @@ import com.google.gerrit.extensions.annotations.PluginName;
 import com.google.gerrit.extensions.annotations.RequiresCapability;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.projects.ProjectInput;
+import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.ConfigResource;
+import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
+import com.google.gerrit.server.git.MetaDataUpdate;
 import com.google.gerrit.server.project.ProjectResource;
 import com.google.gerrit.server.project.ProjectsCollection;
 import com.google.gwtorm.server.OrmException;
@@ -29,6 +32,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by shivneil on 11/8/15.
@@ -41,6 +48,8 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
     private final Provider<AddGitReview> gitReviewProvider;
     private final Provider<AddGitIgnore> gitIgnoreProvider;
     private final Provider<ProjectsCollection> projectProvider;
+    private final MetaDataUpdate.User userProvider;
+    private final GitReferenceUpdated referenceUpdate;
 
     static class ExtendedProjectInput extends ProjectInput {
         String head;
@@ -62,10 +71,12 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
                           @Assisted String name,
                           Provider<CurrentUser> currentUserProvider,
                           Provider<ProjectsCollection> projectsProvider,
+                          MetaDataUpdate.User userProvider,
                           GerritApi api,
                           Provider<AddGitReview> gitReviewProvider,
                           Provider<AddGitIgnore> gitIgnoreProvider,
-                          GitRepositoryManager repositoryManager) {
+                          GitRepositoryManager repositoryManager,
+                          GitReferenceUpdated referenceUpdated) {
 //        log.info("Constructor::hey it fired!");
 
         this.pluginName = pluginName;
@@ -75,10 +86,12 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
             log.error("Hey the projectsProvider was null!");
         }
         this.projectProvider = projectsProvider;
+        this.userProvider = userProvider;
         this.api = api;
         this.gitReviewProvider = gitReviewProvider;
         this.gitIgnoreProvider = gitIgnoreProvider;
         this.repositoryManager = repositoryManager;
+        this.referenceUpdate = referenceUpdated;
     }
 
     @Override
@@ -137,36 +150,95 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
             }
 
             ProjectResource createdProject = null;
-            // Do GitReview stuff
 
-            if(extendedProjectInput.gitReview != null) {
-                log.info("Adding gitreview to " + name);
-                try {
-                    createdProject = projectProvider.get().parse(name);
-                    Response<AddGitReview.GitReviewInfo> reviewInfoResponse = gitReviewProvider.get().apply(createdProject, extendedProjectInput.gitReview);
-                    info.gitReviewInfo = reviewInfoResponse.value();
-                } catch (IOException ioe) {
+            try {
+                createdProject = projectProvider.get().parse(name);
+                Repository repo = repositoryManager.openRepository(nameKey);
+//                List<Map<String, String>> commitMaps = new ArrayList<>(2);
+                if(extendedProjectInput.gitReview != null) {
+                    log.info("Found gitreview arguments");
+                    // Map:
+                    //  refToCommitTo
+                    //  filename
+                    //  filecontents
+                    //  commitMessage
+                    Map<String, String> reviewMap = new HashMap<>();
+                    reviewMap.put("refName", extendedProjectInput.gitReview.branch);
+                    reviewMap.put("filename", ".gitreview");
+                    reviewMap.put("fileContents", "Heres what goes in the gitreview file");
+                    reviewMap.put("commitMessage", extendedProjectInput.gitReview.commitMessage);
+                    log.info(reviewMap.toString());
+                    log.info("creating review file commit");
+                    CommitInfo cInfo = GitUtil.createFileCommit(repo, userProvider.getUserPersonIdent(), referenceUpdate, nameKey, reviewMap);
+                    info.gitReviewInfo = new AddGitReview.GitReviewInfo();
+                    info.gitReviewInfo.commitId = cInfo.commit;
+                    info.gitReviewInfo.commitMessage = cInfo.message;
 
+//                    commitMaps.add(reviewMap);
                 }
-//                StringBuilder sb = new StringBuilder("GitReview:")
-//                        .append(extendedProjectInput.gitreview);
-//                info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
+
+                if(extendedProjectInput.gitIgnore != null) {
+                    log.info("Found gitignore arguments");
+                    Map<String, String> ignoreMap = new HashMap<>();
+                    ignoreMap.put("refName", extendedProjectInput.gitIgnore.branch);
+                    ignoreMap.put("filename", ".gitignore");
+                    ignoreMap.put("fileContents", "Here's what goes in the gitignore file");
+                    ignoreMap.put("commitMessage", extendedProjectInput.gitIgnore.commitMessage);
+                    log.info(ignoreMap.toString());
+                    log.info("creating ignore file commit");
+                    CommitInfo cInfo = GitUtil.createFileCommit(repo, userProvider.getUserPersonIdent(), referenceUpdate, nameKey, ignoreMap);
+                    info.gitignoreInfo = new AddGitIgnore.GitIgnoreInfo();
+                    info.gitignoreInfo.commitId = cInfo.commit;
+                    info.gitignoreInfo.commitMessage = cInfo.message;
+//                    commitMaps.add(ignoreMap);
+                }
+
+
+//                if(commitMaps.size() > 0) {
+//                    log.info("creating file commit");
+//                    CommitInfo cInfo = GitUtil.createFileCommit(repo, userProvider.getUserPersonIdent(), referenceUpdate, nameKey, commitMaps);
+//                    info.gitignoreInfo = new AddGitIgnore.GitIgnoreInfo();
+//                    info.gitignoreInfo.commitId = cInfo.commit;
+//                    info.gitignoreInfo.commitMessage = cInfo.message;
+//                    info.gitReviewInfo = new AddGitReview.GitReviewInfo();
+//                    info.gitReviewInfo.commitId = cInfo.commit;
+//                    info.gitReviewInfo.commitMessage = cInfo.message;
+//                }
+            } catch (RepositoryNotFoundException rne) {
+
+            } catch (IOException e) {
+                e.printStackTrace();
             }
 
-            // Do GitIgnore stuff
-            if (extendedProjectInput.gitIgnore != null) {
-                log.info("Adding gitreview to " + name);
-                if(createdProject == null) {
-                    try {
-                        createdProject = projectProvider.get().parse(name);
-                    } catch (IOException ioe) {
-
-                    }
-                }
-                Response<AddGitIgnore.GitIgnoreInfo> gitIgnoreInfoResponse = gitIgnoreProvider.get().apply(createdProject, extendedProjectInput.gitIgnore);
-                info.gitignoreInfo = gitIgnoreInfoResponse.value();
-
-            }
+//            // Do GitReview stuff
+//            if(extendedProjectInput.gitReview != null) {
+//                log.info("Adding gitreview to " + name);
+//                try {
+//                    createdProject = projectProvider.get().parse(name);
+//                    Response<AddGitReview.GitReviewInfo> reviewInfoResponse = gitReviewProvider.get().apply(createdProject, extendedProjectInput.gitReview);
+//                    info.gitReviewInfo = reviewInfoResponse.value();
+//                } catch (IOException ioe) {
+//
+//                }
+////                StringBuilder sb = new StringBuilder("GitReview:")
+////                        .append(extendedProjectInput.gitreview);
+////                info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
+//            }
+//
+//            // Do GitIgnore stuff
+//            if (extendedProjectInput.gitIgnore != null) {
+//                log.info("Adding gitreview to " + name);
+//                if(createdProject == null) {
+//                    try {
+//                        createdProject = projectProvider.get().parse(name);
+//                    } catch (IOException ioe) {
+//
+//                    }
+//                }
+//                Response<AddGitIgnore.GitIgnoreInfo> gitIgnoreInfoResponse = gitIgnoreProvider.get().apply(createdProject, extendedProjectInput.gitIgnore);
+//                info.gitignoreInfo = gitIgnoreInfoResponse.value();
+//
+//            }
         }
 
         return Response.created(info);

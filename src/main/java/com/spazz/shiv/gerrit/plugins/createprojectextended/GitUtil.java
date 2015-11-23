@@ -6,11 +6,20 @@ import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
+import org.eclipse.jgit.dircache.DirCache;
+import org.eclipse.jgit.dircache.DirCacheBuilder;
+import org.eclipse.jgit.dircache.DirCacheEntry;
 import org.eclipse.jgit.lib.*;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.revwalk.RevTree;
+import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by shivneil on 11/11/15.
@@ -30,18 +39,138 @@ public class GitUtil {
         }
     }
 
-    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer, String refName, String filename, String fileContents, String commitMessage, GitReferenceUpdated referenceUpdated, Project.NameKey key) {
+    private static void createFileCommit(Repository repo, PersonIdent committer, String refName, String fileName, String fileContents) {
+
+        try(ObjectInserter oi = repo.newObjectInserter()) {
+
+            // Create an in memory index that's initially empty
+            DirCache index = DirCache.newInCore();
+
+//            DirCache index = new DirCache(repo.getDirectory(), repo.getFS());
+            DirCacheBuilder builder = index.builder();
+
+//            index.read();
+//            boolean locked = index.lock();
+//            DirCache index = repo.lockDirCache();
+
+            refName = normalizeBranchName(refName, false);
+            ObjectId branchRef = repo.resolve(refName);
+            RevWalk rw = new RevWalk(repo);
+            RevCommit parent = rw.parseCommit(branchRef);
+
+            byte[] file = fileContents.getBytes();
+//            byte[] second = "Hey its the ignore".getBytes("UTF-8");
+            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, file, 0, file.length);
+//            ObjectId secondfileId = oi.insert(Constants.OBJ_BLOB, second, 0, second.length);
+
+            RevTree commitTree = rw.parseTree(parent.getTree().getId());
+            rw.dispose();
+
+//            TreeFormatter formatter = new TreeFormatter();
+            TreeWalk tw = new TreeWalk(repo);
+            tw.addTree(commitTree);
+
+            boolean fileAlreadyCreated = false;
+            while(tw.next()) {
+                if(tw.getObjectId(0) != ObjectId.zeroId()) {
+                    if(tw.getNameString().matches(fileName)) {
+//                        fileAlreadyCreated = true;
+//                        fileId = tw.getObjectId(0);
+//                        RevBlob blob;
+                        log.info(tw.getNameString() + " found");
+                        continue;
+                    }
+
+                    DirCacheEntry currentEntry = new DirCacheEntry(tw.getPathString());
+                    currentEntry.setFileMode(tw.getFileMode(0));
+                    currentEntry.setObjectId(tw.getObjectId(0));
+                    builder.add(currentEntry);
+//                    formatter.append(tw.getNameString(), tw.getFileMode(0), tw.getObjectId(0));
+                }
+                else {
+                    log.info("Found Zero ID object");
+                }
+            }
+
+            DirCacheEntry newEntry = new DirCacheEntry(fileName);
+            newEntry.setFileMode(FileMode.REGULAR_FILE);
+            newEntry.setObjectId(fileId);
+            builder.add(newEntry);
+//            formatter.append(fileName, FileMode.REGULAR_FILE, fileId);
+//            formatter.append(".gitignore", FileMode.REGULAR_FILE, secondfileId);
+//            ObjectId treeId = oi.insert(formatter);
+            builder.finish();
+            ObjectId treeId = index.writeTree(oi);
+            tw.close();
+
+            CommitBuilder cb = new CommitBuilder();
+            cb.setTreeId(treeId);
+            cb.setParentId(parent);
+            cb.setAuthor(committer);
+            cb.setCommitter(committer);
+            cb.setMessage("Hererskadsk");
+            ObjectId commitId = oi.insert(cb);
+
+//            index.write();
+//            index.commit();
+//            index.writeTree(oi);
+
+            oi.flush();
+
+
+            RefUpdate ru = repo.updateRef(refName);
+            ru.setForceUpdate(true);
+            ru.setRefLogIdent(committer);
+            ru.setNewObjectId(commitId);
+//            ru.setExpectedOldObjectId(parent.toObjectId());
+            ru.setRefLogMessage("commit: " + cb.getMessage(), false);
+
+            RefUpdate.Result result = ru.update();
+            log.info("Result: " + result.name());
+            switch (result) {
+                case NEW:
+                case FAST_FORWARD:
+                case FORCED:
+                    break;
+                default: {
+                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    
+    // Map:
+    //  refToCommitTo
+    //  filename
+    //  filecontents
+    //  commitMessage
+
+    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer,
+                                              GitReferenceUpdated referenceUpdated, Project.NameKey key, Map<String, String> commit) {
         log.info("Now entering the createFileCommit method");
+
 
         CommitInfo info = null;
         try(ObjectInserter oi = repo.newObjectInserter()) {
+            
+            // Create an in memory empty index and builder for index modification
+            DirCache index = DirCache.newInCore();
+            DirCacheBuilder idxBuilder = index.builder();
+            
+            String branchRefsHeads = Constants.R_HEADS;
+            String branchAlone = Constants.R_HEADS;
+//            StringBuilder commitMessageBuilder = new StringBuilder();
 
-            String branchRefsHeads = GitUtil.denormalizeBranchName(refName);
-            String branchAlone = GitUtil.normalizeBranchName(refName);
+            String refName = commit.get("refName");
+            String filename = commit.get("filename");
+            String fileContents = commit.get("fileContents");
+            String commitMessage = commit.get("commitMessage");
 
-            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
-
-            info = new CommitInfo(); // info to return on success
+            branchRefsHeads = GitUtil.denormalizeBranchName(refName);
+            branchAlone = GitUtil.normalizeBranchName(refName);
 
             // Contents of the file becomes a blob
             byte[] grFile = fileContents.getBytes();
@@ -51,13 +180,63 @@ public class GitUtil {
             log.info("FileID: " + fileId.getName());
 
             // Add a tree object that represents the filename and metadata
-            TreeFormatter formatter = new TreeFormatter();
-            formatter.append(filename, FileMode.REGULAR_FILE, fileId);
-            ObjectId treeId = oi.insert(formatter);
-            log.info("TreeID: " + treeId.getName());
+//                formatter.append(filename, FileMode.REGULAR_FILE, fileId);
 
+//            commitMessageBuilder.append(commitMessage).append(System.lineSeparator());
+            RevWalk rw = new RevWalk(repo);
+            ObjectId parentId = repo.getRef(branchRefsHeads).getObjectId();
+            RevCommit parentCommit = rw.parseCommit(parentId);
+
+            RevTree parentTree = parentCommit.getTree();
+            TreeWalk tw = new TreeWalk(repo);
+            tw.addTree(parentTree);
+            rw.dispose();
+            
+            while(tw.next()) {
+                if(tw.getObjectId(0) != ObjectId.zeroId()) {
+                    if(tw.getNameString().matches(filename)) {
+//                        fileAlreadyCreated = true;
+//                        fileId = tw.getObjectId(0);
+//                        RevBlob blob;
+                        log.info(tw.getNameString() + " found");
+                        continue;
+                    }
+
+                    DirCacheEntry currentEntry = new DirCacheEntry(tw.getPathString());
+                    currentEntry.setFileMode(tw.getFileMode(0));
+                    currentEntry.setObjectId(tw.getObjectId(0));
+                    idxBuilder.add(currentEntry);
+//                    formatter.append(tw.getNameString(), tw.getFileMode(0), tw.getObjectId(0));
+                }
+                else {
+                    log.info("Found Zero ID object");
+                }
+                
+            }
+//            TreeFormatter formatter = new TreeFormatter();
+//            for (Map<String, String> commit :
+//                    commits) {
+//
+//            }
+
+//            String commitMessage = commitMessageBuilder.toString();
+
+            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
+
+            info = new CommitInfo(); // info to return on success
+
+
+//            ObjectId treeId = oi.insert(formatter);
+            DirCacheEntry newEntry = new DirCacheEntry(filename);
+            newEntry.setFileMode(FileMode.REGULAR_FILE);
+            newEntry.setObjectId(fileId);
+            idxBuilder.add(newEntry);
+            idxBuilder.finish();
+            ObjectId treeId = index.writeTree(oi);
+            log.info("TreeID: " + treeId.getName());
+            tw.close();
+            
             // Commit the changes to the repo i.e. attach our local leaf to the repo tree
-            PersonIdent person = new PersonIdent(repo);
             CommitBuilder cb = new CommitBuilder();
             cb.setParentId(parent);
             cb.setTreeId(treeId);
@@ -75,10 +254,10 @@ public class GitUtil {
             oi.flush();
 
             RefUpdate ru = repo.updateRef(branchRefsHeads);
-//            ru.setForceUpdate(true);
+            ru.setForceUpdate(true);
             ru.setRefLogIdent(committer);
             ru.setNewObjectId(commitId);
-//            ru.setExpectedOldObjectId(ObjectId.zeroId());
+            ru.setExpectedOldObjectId(parent.toObjectId());
             ru.setRefLogMessage("commit: " + commitMessage, false);
 
             RefUpdate.Result result = ru.update();
