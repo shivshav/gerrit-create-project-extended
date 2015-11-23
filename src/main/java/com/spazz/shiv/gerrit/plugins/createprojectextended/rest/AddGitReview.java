@@ -1,11 +1,12 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.HashMultimap;
+import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.CanonicalWebUrl;
-import com.google.gerrit.server.config.ConfigResource;
 import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
@@ -21,6 +22,8 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.jgit.lib.Constants;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by shivneil on 11/8/15.
@@ -55,7 +58,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
     static class GitReviewInput {
         String branch;
-        String message;
+        String commitMessage;
     }
 
     public static class GitReviewInfo {
@@ -99,13 +102,13 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             ref = gitReviewInput.branch;
         }
 
-        // Check if commit message is null or empty
-        if(Strings.isNullOrEmpty(gitReviewInput.message)) {
+        // Check if commit commitMessage is null or empty
+        if(Strings.isNullOrEmpty(gitReviewInput.commitMessage)) {
             message = GITREVIEW_DEFAULT_COMMIT_MESSAGE;
-            log.info("Commit message not found in data. Using default message");
+            log.info("Commit commitMessage not found in data. Using default commitMessage");
         }
         else {
-            message = gitReviewInput.message;
+            message = gitReviewInput.commitMessage;
         }
 
         Project.NameKey name = new Project.NameKey(projectResource.getName());
@@ -121,7 +124,20 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
 
             // TODO: Use the method from GitUtil
             // Create the gitreview file
-            info = createFileCommit(repo, name, ref, message);
+            Map<String, String> reviewMap = new HashMap<>();
+            reviewMap.put("refName", ref);
+            reviewMap.put("filename", GITREVIEW_FILENAME);
+            reviewMap.put("fileContents", createReviewFile(name, GitUtil.normalizeBranchName(ref)));
+            reviewMap.put("commitMessage", message);
+
+            CommitInfo cInfo = new CommitInfo();
+            cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), referenceUpdated, name, reviewMap);
+
+            info = new GitReviewInfo();
+            info.commitId = cInfo.commit;
+            info.commitMessage = cInfo.message;
+
+//            info = createFileCommit(repo, name, ref, message);
 
         } catch (IOException ioe) {
             throw new RestApiException(ioe.getMessage());
@@ -136,6 +152,20 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         return Response.created(info);
     }
 
+    private String createReviewFile(Project.NameKey project, String branchAlone){
+        String reviewFile = "[" + GITREVIEW_REMOTE_NAME + "]\n" +
+                GITREVIEW_HOST_KEY + webUrl + "\n" +
+                GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
+                GITREVIEW_PROJECT_KEY + project.get() + ".git\n" +
+                GITREVIEW_DEFAULT_BRANCH_KEY + branchAlone + "\n";
+        //        // Contents of the file becomes a blob
+//        byte[] grFile = ("[" + GITREVIEW_REMOTE_NAME + "]\n" +
+//                GITREVIEW_HOST_KEY + webUrl + "\n" +
+//                GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
+//                GITREVIEW_PROJECT_KEY + project.get() + ".git" + "\n" +
+//                GITREVIEW_DEFAULT_BRANCH_KEY + branchAlone + "\n").getBytes();
+        return reviewFile;
+    }
 
     private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName, String message) {
         log.info("Now entering the createFileCommit method");
