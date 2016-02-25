@@ -1,10 +1,9 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.client;
 
 import com.google.gerrit.plugin.client.screen.Screen;
-import com.google.gwt.dom.client.Style;
+import com.google.gwt.event.logical.shared.ValueChangeEvent;
+import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.user.client.ui.*;
-import com.google.gwtexpui.globalkey.client.NpTextBox;
-
 
 
 /**
@@ -12,8 +11,13 @@ import com.google.gwtexpui.globalkey.client.NpTextBox;
  */
 public class CreateProjectExtendedScreen extends VerticalPanel {
     private final static String LABEL_PROJECT_NAME = "Project Name:";
-    private final static String LABEL_PROJECT_PARENT = "Rights inherit from:";
+    private final static String LABEL_PROJECT_PARENT = "Rights Inherit From:";
     private final static String LABEL_INITIAL_COMMIT = "Create initial commit";
+    private final static String LABEL_CREATE_BRANCHES = "Initial Branches:";
+    private final static String LABEL_DEFAULT_BRANCH = "Default Branch:";
+    private final static String LABEL_GITIGNORE_ADD = "Add gitignore file";
+    private final static String LABEL_GITIGNORE_TEMPLATES = "Gitignore Templates:";
+    private final static String LABEL_GITREVIEW_ADD = "Add gitreview file";
     private final static String LABEL_ONLY_PARENT = "Only serve as parent for other projects";
     private final static String LABEL_CREATE_PROJECT = "Create Project";
 
@@ -23,8 +27,14 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     private Button create;
     private Button browse;
     private TextBox parent;
+    private TextBox branches;
+    private TextBox head;
+    private TextBox gitignoreTemplates;
+    private CheckBox addGitIgnore;
+    private CheckBox addGitReview;
     private CheckBox emptyCommit;
     private CheckBox permissionsOnly;
+
 //    private ProjectsTable suggestedParentsTab;
 //    private ProjectListPopup projectsPopup;
 
@@ -70,19 +80,92 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         initCreateButton();
         initCreateTxt();
         initParentBox();
+        initBranchesTxt();
+        initHeadText();
+
+        initGitIgnore();
+        initGitReview();
+        initPermissionsOnly();
+        initEmptyCommit();
 
         addGrid(fp);
 
-        emptyCommit = new CheckBox(LABEL_INITIAL_COMMIT);
-        permissionsOnly = new CheckBox(LABEL_ONLY_PARENT);
+        boolean enable = emptyCommit.getValue() && !permissionsOnly.getValue();
+        addGitIgnore.setEnabled(enable);
+        gitignoreTemplates.setEnabled(enable);
+        addGitReview.setEnabled(enable);
+
         fp.add(emptyCommit);
         fp.add(permissionsOnly);
+        fp.add(addGitIgnore);
+        addGitIgnoreGrid(fp);
+        fp.add(addGitReview);
         fp.add(create);
         VerticalPanel vp = new VerticalPanel();
         vp.add(fp);
 //        initSuggestedParents();
 //        vp.add(suggestedParentsTab);
         add(vp);
+    }
+
+    private void initPermissionsOnly() {
+        permissionsOnly = new CheckBox(LABEL_ONLY_PARENT);
+        permissionsOnly.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+            @Override
+            public void onValueChange(ValueChangeEvent<Boolean> valueChangeEvent) {
+                Boolean enabled = !valueChangeEvent.getValue();
+                addGitIgnore.setEnabled(enabled);
+                addGitReview.setEnabled(enabled);
+            }
+        });
+    }
+
+    private void initEmptyCommit() {
+        emptyCommit = new CheckBox(LABEL_INITIAL_COMMIT);
+        emptyCommit.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+            @Override
+            public void onValueChange(ValueChangeEvent<Boolean> valueChangeEvent) {
+                // React for gitignore/review only if this isn't a rights project
+                if(!permissionsOnly.getValue()) {
+                    Boolean enabled = valueChangeEvent.getValue();
+                    addGitIgnore.setEnabled(enabled);
+                    addGitReview.setEnabled(enabled);
+                }
+            }
+        });
+    }
+
+    private void addGitIgnoreGrid(VerticalPanel fp) {
+        Grid gitignoreGrid = new Grid(1, 3);
+        gitignoreGrid.setText(0, 0, LABEL_GITIGNORE_TEMPLATES);
+        gitignoreGrid.setWidget(0, 1, gitignoreTemplates);
+        fp.add(gitignoreGrid);
+    }
+
+    private void initGitReview() {
+        addGitReview = new CheckBox(LABEL_GITREVIEW_ADD);
+    }
+
+    private void initGitIgnore() {
+        gitignoreTemplates = new TextBox();
+        gitignoreTemplates.setVisibleLength(50);
+        addGitIgnore = new CheckBox(LABEL_GITIGNORE_ADD);
+        addGitIgnore.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+            @Override
+            public void onValueChange(ValueChangeEvent<Boolean> valueChangeEvent) {
+                gitignoreTemplates.setEnabled(valueChangeEvent.getValue());
+            }
+        });
+    }
+
+    private void initHeadText() {
+        head = new TextBox();
+        head.setVisibleLength(50);
+    }
+
+    private void initBranchesTxt() {
+        branches = new TextBox();
+        branches.setVisibleLength(50);
     }
 
     private void initCreateTxt() {
@@ -187,13 +270,19 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     }
 
     private void addGrid(final VerticalPanel fp) {
-        grid = new Grid(2, 3);
+        grid = new Grid(4, 3);
         grid.setStyleName("infoBlock");
         grid.setText(0, 0, LABEL_PROJECT_NAME);
         grid.setWidget(0, 1, project);
         grid.setText(1, 0, LABEL_PROJECT_PARENT);
         grid.setWidget(1, 1, parent);
         grid.setWidget(1, 2, browse);
+        grid.setText(2, 0, LABEL_CREATE_BRANCHES);
+        grid.setWidget(2, 1, branches);
+        grid.setText(3, 0, LABEL_DEFAULT_BRANCH);
+        grid.setWidget(3, 1,  head);
+//        grid.setText(4, 0, LABEL_GITIGNORE_TEMPLATES);
+//        grid.setWidget(4, 1, gitignoreTemplates);
         fp.add(grid);
     }
 }
