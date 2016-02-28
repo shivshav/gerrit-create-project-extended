@@ -356,9 +356,22 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         public final native void setInitialCommit(boolean c) /*-{ this.create_empty_commit = c; }-*/;
         public final native void setBranches(String[] b) /*-{ this.branches = b; }-*/;
         public final native void setHead(String h) /*-{ this.head = h; }-*/;
+        public final native void setGitReview(JSGitReview gr) /*-{ this.git_review = gr; }-*/;
 
         public final native String getName() /*-{ return this.name; }-*/;
         public final native String getDescription() /*-{ return this.description; }-*/;
+    }
+
+    private static class JSGitReview extends JavaScriptObject {
+        protected JSGitReview() {
+        }
+
+        static JSGitReview create() {
+            return (JSGitReview) createObject();
+        }
+
+        public final native void setBranch(String b) /*-{ this.branch = b; }-*/;
+        public final native void setCommitMessage(String cm) /*-{ this.commit_message = cm; }-*/;
     }
 
     private void addGrid(final VerticalPanel fp) {
@@ -388,6 +401,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //        enableForm(false);
         String[] branchList = branches.getText().isEmpty()? null:branches.getText().split(",");
 
+
         JSExtendedProject input = JSExtendedProject.create();
         input.setName(projectName);
         input.setParent(parentName);
@@ -395,6 +409,14 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         input.setInitialCommit(emptyCommit.getValue());
         input.setPermissionsProject(permissionsOnly.getValue());
         input.setHead(headName);
+
+        if (addGitReview.getValue()) {
+            JSGitReview grInput = JSGitReview.create();
+            grInput.setBranch(headName);
+            grInput.setCommitMessage("Added default .gitreview file.");
+            input.setGitReview(grInput);
+        }
+
 
         RestApi createCall = new RestApi("a").view("config").view("server").view("createprojectextended", "projects").id(projectName);
         DialogBox path = new DialogBox(true);
