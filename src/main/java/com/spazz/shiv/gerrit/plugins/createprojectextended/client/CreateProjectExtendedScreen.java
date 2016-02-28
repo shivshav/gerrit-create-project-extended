@@ -5,13 +5,11 @@ import com.google.gerrit.client.rpc.NativeMap;
 //import com.google.gerrit.extensions.api.projects.ProjectApi;
 //import com.google.gerrit.extensions.api.projects.Projects;
 //import com.google.gerrit.extensions.common.ProjectInfo;
-import com.google.gerrit.extensions.api.projects.ProjectApi;
 import com.google.gerrit.plugin.client.rpc.RestApi;
 import com.google.gerrit.plugin.client.screen.Screen;
 //import com.google.gerrit.reviewdb.client.Project;
 //import com.google.gerrit.server.StringUtil;
 //import com.google.gerrit.server.api.projects.ProjectApiImpl;
-import com.google.gerrit.reviewdb.client.TrackingId;
 import com.google.gwt.core.client.JavaScriptObject;
 //import com.google.gwt.core.client.JsArray;
 //import com.google.gwt.core.client.Scheduler;
@@ -20,13 +18,11 @@ import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.user.client.Event;
 //import com.google.gwt.user.client.History;
-import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.*;
-import com.google.gwtexpui.safehtml.client.HighlightSuggestOracle;
 
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.List;
 //import com.google.gwtexpui.globalkey.client.NpTextBox;
 //import com.google.gwtjsonrpc.common.VoidResult;
 //import com.google.inject.Inject;
@@ -57,7 +53,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     private Button browse;
     private SuggestBox parent;
     private TextBox branches;
-    private TextBox head;
+    private ListBox head;
     private TextBox gitignoreTemplates;
     private CheckBox addGitIgnore;
     private CheckBox addGitReview;
@@ -112,10 +108,10 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         initBranchesTxt();
         initHeadText();
 
-        initGitIgnore();
-        initGitReview();
         initPermissionsOnly();
         initEmptyCommit();
+        initGitIgnore();
+        initGitReview();
         initSuggestedParents();
 
         addGrid(fp);
@@ -124,9 +120,10 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         addGitIgnore.setEnabled(enable);
         gitignoreTemplates.setEnabled(enable);
         addGitReview.setEnabled(enable);
+        head.setEnabled(!(branches.getValue().isEmpty()));
 
-        fp.add(emptyCommit);
         fp.add(permissionsOnly);
+        fp.add(emptyCommit);
         fp.add(addGitIgnore);
         addGitIgnoreGrid(fp);
         fp.add(addGitReview);
@@ -142,7 +139,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         permissionsOnly.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
             @Override
             public void onValueChange(ValueChangeEvent<Boolean> valueChangeEvent) {
-                Boolean enabled = !valueChangeEvent.getValue();
+                Boolean enabled = !valueChangeEvent.getValue() && emptyCommit.getValue();
                 addGitIgnore.setEnabled(enabled);
                 addGitReview.setEnabled(enabled);
             }
@@ -155,11 +152,9 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
             @Override
             public void onValueChange(ValueChangeEvent<Boolean> valueChangeEvent) {
                 // React for gitignore/review only if this isn't a rights project
-                if(!permissionsOnly.getValue()) {
-                    Boolean enabled = valueChangeEvent.getValue();
-                    addGitIgnore.setEnabled(enabled);
-                    addGitReview.setEnabled(enabled);
-                }
+                Boolean enabled = valueChangeEvent.getValue() && !permissionsOnly.getValue();
+                addGitIgnore.setEnabled(enabled);
+                addGitReview.setEnabled(enabled);
             }
         });
     }
@@ -188,13 +183,45 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     }
 
     private void initHeadText() {
-        head = new TextBox();
-        head.setVisibleLength(50);
+//        MultiWordSuggestOracle branchOracle = new MultiWordSuggestOracle();
+//        branchOracle.addAll(initialSuggestions);
+        head = new ListBox();
+        boolean empty = branches.getValue().isEmpty();
+        head.setEnabled(!empty);
+        if(empty) {
+            head.addItem("master");
+        }
+        else {
+            String[] initialSuggestions = branches.getText().split(",");
+            for (String initialSuggestion : initialSuggestions) {
+                head.addItem(initialSuggestion.trim());
+            }
+        }
+        head.setSelectedIndex(0);
     }
 
     private void initBranchesTxt() {
         branches = new TextBox();
         branches.setVisibleLength(50);
+
+        branches.addValueChangeHandler(new ValueChangeHandler<String>() {
+            @Override
+            public void onValueChange(ValueChangeEvent<String> valueChangeEvent) {
+                head.clear();
+                boolean empty = valueChangeEvent.getValue().isEmpty();
+                head.setEnabled(!empty);
+                if(empty) {
+                    head.addItem("master");
+                }
+                else {
+                    String[] initialSuggestions = branches.getText().split(",");
+                    for (String initialSuggestion : initialSuggestions) {
+                        head.addItem(initialSuggestion.trim());
+                    }
+                }
+                head.setSelectedIndex(0);
+            }
+        });
     }
 
     private void initCreateTxt() {
@@ -272,7 +299,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         path.setText(listPermsProj.path());
         path.show();
 
-//        System.out.println("PATH:" + listPermsProj.path());
+        //TODO: This will not pick up any new projects created since the screen has loaded. So we'll fix that in an update
         parent = new SuggestBox(oracle);
         ((TextBox) parent.getValueBox()).setVisibleLength(50);
         listPermsProj.get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
@@ -290,40 +317,6 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
                 parent.refreshSuggestionList();
             }
         });
-//    SuggestOracle.Suggestion s = new SuggestOracle.Suggestion() {
-//            @Override
-//            public String getDisplayString() {
-//                return this;
-//            }
-//
-//            @Override
-//            public String getReplacementString() {
-//                return null;
-//            }
-//        }
-//        SuggestOracle oracle = new SuggestOracle() {
-//            @Override
-//            public void requestSuggestions(Request request, Callback callback) {
-//                new RestApi("projects").view("").addParameter("type", "permissions").get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
-//                    @Override
-//                    public void onFailure(Throwable throwable) {
-//
-//                    }
-//
-//                    @Override
-//                    public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
-//                        Response res = new Response();
-//
-//                        for (String s : javaScriptObject.keySet()) {
-//                            res.add(s);
-//                            parent = new SuggestBox(oracle);
-//                            ((TextBox) parent.getValueBox()).setVisibleLength(50);
-//                        }
-//                    }
-//                });
-//                callback.onSuggestionsReady(request, res);
-//            }
-//        };
     }
 
     private void initSuggestedParents() {
@@ -463,7 +456,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     private void doCreateProject() {
         final String projectName = project.getText().trim();
         final String parentName = parent.getText().trim();
-        final String headName = head.getText().isEmpty()? null: head.getText().trim();
+        final String headName = head.getSelectedItemText().isEmpty()? null: head.getSelectedItemText().trim();
 
         if ("".equals(projectName)) {
             project.setFocus(true);
