@@ -109,6 +109,11 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
             throw new BadRequestException("name must match URL");
         }
 
+        if(extendedProjectInput.branches == null) {
+            extendedProjectInput.branches = new ArrayList<>();
+            extendedProjectInput.branches.add("master");
+        }
+
         // Ensure that if HEAD is set, it is set to a branch inside of the branches input fields
         if(extendedProjectInput.head != null && !extendedProjectInput.branches.contains(extendedProjectInput.head)) {
             throw new BadRequestException("HEAD must be set to one of the values of the 'branches' key");
