@@ -5,35 +5,28 @@ import com.google.gerrit.client.rpc.NativeMap;
 //import com.google.gerrit.extensions.api.projects.ProjectApi;
 //import com.google.gerrit.extensions.api.projects.Projects;
 //import com.google.gerrit.extensions.common.ProjectInfo;
-import com.google.gerrit.extensions.annotations.RequiresCapability;
 import com.google.gerrit.plugin.client.rpc.RestApi;
 import com.google.gerrit.plugin.client.screen.Screen;
 //import com.google.gerrit.reviewdb.client.Project;
 //import com.google.gerrit.server.StringUtil;
 //import com.google.gerrit.server.api.projects.ProjectApiImpl;
-import com.google.gerrit.server.StringUtil;
-import com.google.gson.JsonDeserializer;
 import com.google.gwt.core.client.JavaScriptObject;
 //import com.google.gwt.core.client.JsArray;
 //import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.event.dom.client.*;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
-import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.user.client.Event;
 //import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.*;
-import com.google.gwtjsonrpc.client.JsonUtil;
-import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 //import com.google.gwtexpui.globalkey.client.NpTextBox;
 //import com.google.gwtjsonrpc.common.VoidResult;
 //import com.google.inject.Inject;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 
 /**
  * Created by shivneil on 11/7/15.
@@ -357,6 +350,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         public final native void setBranches(String[] b) /*-{ this.branches = b; }-*/;
         public final native void setHead(String h) /*-{ this.head = h; }-*/;
         public final native void setGitReview(JSGitReview gr) /*-{ this.git_review = gr; }-*/;
+        public final native void setGitIgnore(JSGitIgnore gi) /*-{ this.git_ignore = gi; }-*/;
 
         public final native String getName() /*-{ return this.name; }-*/;
         public final native String getDescription() /*-{ return this.description; }-*/;
@@ -372,6 +366,19 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 
         public final native void setBranch(String b) /*-{ this.branch = b; }-*/;
         public final native void setCommitMessage(String cm) /*-{ this.commit_message = cm; }-*/;
+    }
+
+    private static class JSGitIgnore extends JavaScriptObject {
+        protected JSGitIgnore() {
+        }
+
+        static JSGitIgnore create() {
+            return (JSGitIgnore) createObject();
+        }
+
+        public final native void setBranch(String b) /*-{ this.branch = b; }-*/;
+        public final native void setCommitMessage(String cm) /*-{ this.commit_message = cm; }-*/;
+        public final native void setTemplates(String[] t) /*-{ this.gitignoreio_templates = t; }-*/;
     }
 
     private void addGrid(final VerticalPanel fp) {
@@ -400,7 +407,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //
 //        enableForm(false);
         String[] branchList = branches.getText().isEmpty()? null:branches.getText().split(",");
-
+        String[] templateList = gitignoreTemplates.getText().isEmpty()? null:gitignoreTemplates.getText().split(",");
 
         JSExtendedProject input = JSExtendedProject.create();
         input.setName(projectName);
@@ -417,7 +424,14 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
             input.setGitReview(grInput);
         }
 
+        if(addGitIgnore.getValue()) {
+            JSGitIgnore giInput = JSGitIgnore.create();
+            giInput.setBranch(headName);
+            giInput.setCommitMessage("Added default .gitignore file.");
+            giInput.setTemplates(templateList);
+            input.setGitIgnore(giInput);
 
+        }
         RestApi createCall = new RestApi("a").view("config").view("server").view("createprojectextended", "projects").id(projectName);
         DialogBox path = new DialogBox(true);
         path.setText(createCall.path());
