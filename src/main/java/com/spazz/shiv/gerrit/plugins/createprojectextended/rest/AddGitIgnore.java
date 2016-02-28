@@ -82,10 +82,13 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
         // TODO: Keep a cache of gitignore templates to check against on requests
         try {
             HashSet<String> validTemplates = requestGitignoreIoTemplates();
+            log.info("********BEGIN TEMPLATE SET*********");
+            log.info(validTemplates.toString());
+            log.info("********END TEMPLATE SET***********");
             for (String template :
                     gitIgnoreTemplates) {
                 if(!validTemplates.contains(template)) {
-                    throw new UnprocessableEntityException(template + "is not a valid template");
+                    throw new UnprocessableEntityException(template + " is not a valid template");
                 }
             }
         } catch (IOException ioe) {
