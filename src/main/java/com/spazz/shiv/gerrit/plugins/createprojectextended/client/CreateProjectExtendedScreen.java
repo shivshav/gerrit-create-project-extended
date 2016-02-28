@@ -5,11 +5,13 @@ import com.google.gerrit.client.rpc.NativeMap;
 //import com.google.gerrit.extensions.api.projects.ProjectApi;
 //import com.google.gerrit.extensions.api.projects.Projects;
 //import com.google.gerrit.extensions.common.ProjectInfo;
+import com.google.gerrit.extensions.api.projects.ProjectApi;
 import com.google.gerrit.plugin.client.rpc.RestApi;
 import com.google.gerrit.plugin.client.screen.Screen;
 //import com.google.gerrit.reviewdb.client.Project;
 //import com.google.gerrit.server.StringUtil;
 //import com.google.gerrit.server.api.projects.ProjectApiImpl;
+import com.google.gerrit.reviewdb.client.TrackingId;
 import com.google.gwt.core.client.JavaScriptObject;
 //import com.google.gwt.core.client.JsArray;
 //import com.google.gwt.core.client.Scheduler;
@@ -21,6 +23,10 @@ import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.*;
+import com.google.gwtexpui.safehtml.client.HighlightSuggestOracle;
+
+import java.util.ArrayList;
+import java.util.Iterator;
 //import com.google.gwtexpui.globalkey.client.NpTextBox;
 //import com.google.gwtjsonrpc.common.VoidResult;
 //import com.google.inject.Inject;
@@ -49,7 +55,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     private TextBox project;
     private Button create;
     private Button browse;
-    private TextBox parent;
+    private SuggestBox parent;
     private TextBox branches;
     private TextBox head;
     private TextBox gitignoreTemplates;
@@ -258,8 +264,66 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     }
 
     private void initParentBox() {
-        parent = new TextBox();
-        parent.setVisibleLength(50);
+        RestApi listPermsProj = new RestApi("projects").view("").addParameter("type", "permissions");
+        final MultiWordSuggestOracle oracle = new MultiWordSuggestOracle();
+
+
+        DialogBox path = new DialogBox(true);
+        path.setText(listPermsProj.path());
+        path.show();
+
+//        System.out.println("PATH:" + listPermsProj.path());
+        parent = new SuggestBox(oracle);
+        ((TextBox) parent.getValueBox()).setVisibleLength(50);
+        listPermsProj.get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+
+            }
+
+            @Override
+            public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
+
+                for (String s : javaScriptObject.keySet()) {
+                    ((MultiWordSuggestOracle) parent.getSuggestOracle()).add(s);
+                }
+                parent.refreshSuggestionList();
+            }
+        });
+//    SuggestOracle.Suggestion s = new SuggestOracle.Suggestion() {
+//            @Override
+//            public String getDisplayString() {
+//                return this;
+//            }
+//
+//            @Override
+//            public String getReplacementString() {
+//                return null;
+//            }
+//        }
+//        SuggestOracle oracle = new SuggestOracle() {
+//            @Override
+//            public void requestSuggestions(Request request, Callback callback) {
+//                new RestApi("projects").view("").addParameter("type", "permissions").get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
+//                    @Override
+//                    public void onFailure(Throwable throwable) {
+//
+//                    }
+//
+//                    @Override
+//                    public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
+//                        Response res = new Response();
+//
+//                        for (String s : javaScriptObject.keySet()) {
+//                            res.add(s);
+//                            parent = new SuggestBox(oracle);
+//                            ((TextBox) parent.getValueBox()).setVisibleLength(50);
+//                        }
+//                    }
+//                });
+//                callback.onSuggestionsReady(request, res);
+//            }
+//        };
     }
 
     private void initSuggestedParents() {
@@ -400,70 +464,92 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         final String projectName = project.getText().trim();
         final String parentName = parent.getText().trim();
         final String headName = head.getText().isEmpty()? null: head.getText().trim();
+
         if ("".equals(projectName)) {
             project.setFocus(true);
             return;
         }
-//
-//        enableForm(false);
-        String[] branchList = branches.getText().isEmpty()? null:branches.getText().split(",");
-        String[] templateList = gitignoreTemplates.getText().isEmpty()? null:gitignoreTemplates.getText().split(",");
-
-        JSExtendedProject input = JSExtendedProject.create();
-        input.setName(projectName);
-        input.setParent(parentName);
-        input.setBranches(branchList);
-        input.setInitialCommit(emptyCommit.getValue());
-        input.setPermissionsProject(permissionsOnly.getValue());
-        input.setHead(headName);
-
-        if (addGitReview.getValue()) {
-            JSGitReview grInput = JSGitReview.create();
-            grInput.setBranch(headName);
-            grInput.setCommitMessage("Added default .gitreview file.");
-            input.setGitReview(grInput);
-        }
-
-        if(addGitIgnore.getValue()) {
-            JSGitIgnore giInput = JSGitIgnore.create();
-            giInput.setBranch(headName);
-            giInput.setCommitMessage("Added default .gitignore file.");
-            giInput.setTemplates(templateList);
-            input.setGitIgnore(giInput);
-
-        }
-        RestApi createCall = new RestApi("a").view("config").view("server").view("createprojectextended", "projects").id(projectName);
-        DialogBox path = new DialogBox(true);
-        path.setText(createCall.path());
-        path.show();
-
-        createCall.put(input, new AsyncCallback<NativeMap<JSExtendedProject>>() {
+        final String retString;
+        final DialogBox perms = new DialogBox(true);
+        RestApi listPermsProj = new RestApi("projects").view("").addParameter("type", "permissions");
+        listPermsProj.get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
             @Override
             public void onFailure(Throwable throwable) {
-            //never invoked
+
             }
 
             @Override
-            public void onSuccess(NativeMap<JSExtendedProject> response) {
-                String name = response.get("project_info").getName();
-                History.newItem("/admin/projects/" + name);
+            public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("First added hardcoded").append('\n');
+                for (String s : javaScriptObject.keySet()) {
+                    sb.append(s).append('\n');
+                }
+                perms.setText(sb.toString());
+                perms.show();
             }
         });
-//        ProjectApi.createProject(projectName, parentName, emptyCommit.getValue(),
-//                permissionsOnly.getValue(), new AsyncCallback<VoidResult>() {
-//                    @Override
-//                    public void onSuccess(VoidResult result) {
-//                        String nameWithoutSuffix = ProjectUtil.stripGitSuffix(projectName);
-//                        History.newItem(Dispatcher.toProjectAdmin(new Project.NameKey(
-//                                nameWithoutSuffix), ProjectScreen.INFO));
-//                    }
+        return;
 //
-//                    @Override
-//                    public void onFailure(Throwable caught) {
-//                        new ErrorDialog(caught.getMessage()).center();
-//                        enableForm(true);
-//                    }
-//                });
+//        enableForm(false);
+//        String[] branchList = branches.getText().isEmpty()? null:branches.getText().split(",");
+//        String[] templateList = gitignoreTemplates.getText().isEmpty()? null:gitignoreTemplates.getText().split(",");
+//
+//        JSExtendedProject input = JSExtendedProject.create();
+//        input.setName(projectName);
+//        input.setParent(parentName);
+//        input.setBranches(branchList);
+//        input.setInitialCommit(emptyCommit.getValue());
+//        input.setPermissionsProject(permissionsOnly.getValue());
+//        input.setHead(headName);
+//
+//        if (addGitReview.getValue()) {
+//            JSGitReview grInput = JSGitReview.create();
+//            grInput.setBranch(headName);
+//            grInput.setCommitMessage("Added default .gitreview file.");
+//            input.setGitReview(grInput);
+//        }
+//
+//        if(addGitIgnore.getValue()) {
+//            JSGitIgnore giInput = JSGitIgnore.create();
+//            giInput.setBranch(headName);
+//            giInput.setCommitMessage("Added default .gitignore file.");
+//            giInput.setTemplates(templateList);
+//            input.setGitIgnore(giInput);
+//
+//        }
+//        RestApi createCall = new RestApi("a").view("config").view("server").view("createprojectextended", "projects").id(projectName);
+//        DialogBox path = new DialogBox(true);
+//        path.setText(createCall.path());
+//        path.show();
+//
+//        createCall.put(input, new AsyncCallback<NativeMap<JSExtendedProject>>() {
+//            @Override
+//            public void onFailure(Throwable throwable) {
+//            //never invoked
+//            }
+//
+//            @Override
+//            public void onSuccess(NativeMap<JSExtendedProject> response) {
+//                String name = response.get("project_info").getName();
+//                History.newItem("/admin/projects/" + name);
+//            }
+//        });
+////        ProjectApi.createProject(projectName, parentName, emptyCommit.getValue(),
+////                permissionsOnly.getValue(), new AsyncCallback<VoidResult>() {
+////                    @Override
+////                    public void onSuccess(VoidResult result) {
+////                        String nameWithoutSuffix = ProjectUtil.stripGitSuffix(projectName);
+////                        History.newItem(Dispatcher.toProjectAdmin(new Project.NameKey(
+////                                nameWithoutSuffix), ProjectScreen.INFO));
+////                    }
+////
+////                    @Override
+////                    public void onFailure(Throwable caught) {
+////                        new ErrorDialog(caught.getMessage()).center();
+////                        enableForm(true);
+////                    }
+////                });
     }
 
     private void enableForm(final boolean enabled) {

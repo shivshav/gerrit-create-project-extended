@@ -52,6 +52,7 @@ public class ExtendedProjectCollection implements
 //        else {
 //            log.info("Constructor::createExtendedProjectFactory was not null!!!");
 //        }
+
         this.views = views;
         this.createExtendedProjectFactory = createExtendedProjectFactory;
         this.controlFactory = controlFactory;

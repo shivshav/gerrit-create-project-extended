@@ -184,6 +184,7 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
                 info.gitignoreInfo = gitIgnoreInfoResponse.value();
 
             }
+
 //            try {
 //                createdProject = projectProvider.get().parse(name);
 //                Repository repo = repositoryManager.openRepository(nameKey);
