@@ -6,7 +6,6 @@ import com.google.gerrit.extensions.annotations.PluginName;
 import com.google.gerrit.extensions.annotations.RequiresCapability;
 import com.google.gerrit.extensions.api.GerritApi;
 import com.google.gerrit.extensions.api.projects.ProjectInput;
-import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.*;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
@@ -18,12 +17,11 @@ import com.google.gerrit.server.project.ProjectResource;
 import com.google.gerrit.server.project.ProjectsCollection;
 import com.google.gwtorm.server.OrmException;
 import com.google.inject.Inject;
-
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
+import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject.ExtendedProjectInput;
-import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -33,9 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Created by shivneil on 11/8/15.
@@ -163,11 +158,8 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
                     Response<AddGitReview.GitReviewInfo> reviewInfoResponse = gitReviewProvider.get().apply(createdProject, extendedProjectInput.gitReview);
                     info.gitReviewInfo = reviewInfoResponse.value();
                 } catch (IOException ioe) {
-
+                    log.error("GitReview IOException::" + ioe.getMessage());
                 }
-//                StringBuilder sb = new StringBuilder("GitReview:")
-//                        .append(extendedProjectInput.gitreview);
-//                info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
             }
 
             // Do GitIgnore stuff
@@ -177,7 +169,7 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
                     try {
                         createdProject = projectProvider.get().parse(name);
                     } catch (IOException ioe) {
-
+                        log.error("GitIgnore IOException::" + ioe.getMessage());
                     }
                 }
                 Response<AddGitIgnore.GitIgnoreInfo> gitIgnoreInfoResponse = gitIgnoreProvider.get().apply(createdProject, extendedProjectInput.gitIgnore);
@@ -243,36 +235,6 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
 //
 //            } catch (IOException e) {
 //                e.printStackTrace();
-//            }
-
-//            // Do GitReview stuff
-//            if(extendedProjectInput.gitReview != null) {
-//                log.info("Adding gitreview to " + name);
-//                try {
-//                    createdProject = projectProvider.get().parse(name);
-//                    Response<AddGitReview.GitReviewInfo> reviewInfoResponse = gitReviewProvider.get().apply(createdProject, extendedProjectInput.gitReview);
-//                    info.gitReviewInfo = reviewInfoResponse.value();
-//                } catch (IOException ioe) {
-//
-//                }
-////                StringBuilder sb = new StringBuilder("GitReview:")
-////                        .append(extendedProjectInput.gitreview);
-////                info.gitreviewCommit = "b2m3nc: Added default .gitreview file";
-//            }
-//
-//            // Do GitIgnore stuff
-//            if (extendedProjectInput.gitIgnore != null) {
-//                log.info("Adding gitreview to " + name);
-//                if(createdProject == null) {
-//                    try {
-//                        createdProject = projectProvider.get().parse(name);
-//                    } catch (IOException ioe) {
-//
-//                    }
-//                }
-//                Response<AddGitIgnore.GitIgnoreInfo> gitIgnoreInfoResponse = gitIgnoreProvider.get().apply(createdProject, extendedProjectInput.gitIgnore);
-//                info.gitignoreInfo = gitIgnoreInfoResponse.value();
-//
 //            }
         }
 
