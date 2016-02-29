@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BASEDIR=$(readlink -f $(dirname $0))
-IMAGE_NAME=openfrontier/gerrit
+IMAGE_NAME=openfrontier/gerrit:2.11.x
 CONTAINER_NAME=gerrit
 LOCAL_SITE=$BASEDIR/gerrit_site
 ATTEMPT_RESTART=false

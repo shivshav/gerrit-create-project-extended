@@ -83,7 +83,7 @@ public class GitignoreIoConnection {
         log.info("****************End GitIgnore Response*****************");
 
 
-        return new HashSet<>(Arrays.asList(respString.split(",")));
+        return new HashSet<>(Arrays.asList(respString.split(",|\\n")));
 
     }
 }
