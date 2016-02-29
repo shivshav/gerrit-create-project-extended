@@ -323,21 +323,17 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //        projectsPopup = new PopupPanel(false);
         suggestedParentsTab = new FlexTable();
         FlexTable.FlexCellFormatter cellFormatter = suggestedParentsTab.getFlexCellFormatter();
-        suggestedParentsTab.setWidth("32em");
-        suggestedParentsTab.setCellSpacing(5);
-        suggestedParentsTab.setCellPadding(3);
-        suggestedParentsTab.setText(0, 0, "Parent Suggestions");
-        cellFormatter.setStyleName(0, 0, "infoBlock");
-        suggestedParentsTab.setText(0, 1, "Project Name");
-        cellFormatter.setStyleName(0, 1, "infoBlock");
-        suggestedParentsTab.setText(0, 2, "Project Description");
-        cellFormatter.setStyleName(0, 2, "infoBlock");
+//        suggestedParentsTab.setWidth("32em");
+//        suggestedParentsTab.setCellSpacing(5);
+//        suggestedParentsTab.setCellPadding(3);
+        suggestedParentsTab.setStyleName("changeTable");
 
+        addHeaderRow(suggestedParentsTab);
         // Add some text
 
-        cellFormatter.setHorizontalAlignment(
-                0, 1, HasHorizontalAlignment.ALIGN_LEFT);
-        cellFormatter.setColSpan(0, 0, 2);
+//        cellFormatter.setHorizontalAlignment(
+//                0, 1, HasHorizontalAlignment.ALIGN_LEFT);
+//        cellFormatter.setColSpan(0, 0, 2);
         populateSuggestedParents(suggestedParentsTab);
 
         suggestedParentsTab.setVisible(true);
@@ -354,43 +350,96 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //        });
     }
 
-    private void populateSuggestedParents(final FlexTable table) {
+    private void addHeaderRow(FlexTable table) {
+        FlexTable.FlexCellFormatter cellFormatter = table.getFlexCellFormatter();
 
-//        new RestApi("projects")
-//                .addParameter("type", "PERMISSIONS")
-//                .addParameter("d", true)
-//                .get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
-//                    @Override
-//                    public void onFailure(Throwable throwable) {
-//                        // never invoked
-//                    }
-//
-//                    @Override
-//                    public void onSuccess(NativeMap<JSExtendedProject> projectMap) {
-////                        log.debug(projectMap.toString());
-//                        int row = 0;
-//                        for(String name: projectMap.keySet()) {
-//                            JSExtendedProject proj = projectMap.get(name);
-//
-//                            final Anchor projectLink = new Anchor(name);
-//                            projectLink.addClickHandler(new ClickHandler() {
-//
-//                                @Override
-//                                public void onClick(ClickEvent event) {
-//                                    parent.setText(getTitle());
-//                                }
-//                            });
-//
-//                            table.setWidget(row, 2, projectLink);
-//                            table.setText(row, 3, proj.getDescription());
-//
-////                            setRowItem(i, k);
-//
-//                        }
-//
-//
-//                    }
-//                });
+        cellFormatter.addStyleName(0, 0, "iconHeader");
+
+        table.setText(0, 1, "Parent Suggestions");
+        cellFormatter.addStyleName(0, 1, "iconHeader");
+        cellFormatter.getElement(0, 1).setTitle("State");
+
+        table.setText(0, 2, "Project Name");
+        cellFormatter.addStyleName(0, 2, "dataHeader");
+
+        table.setText(0, 3, "Project Description");
+        cellFormatter.addStyleName(0, 3, "dataHeader");
+    }
+
+    private void addDataRow(FlexTable table, int row, Widget name, String description) {
+        FlexTable.FlexCellFormatter cellFormatter = table.getFlexCellFormatter();
+
+        cellFormatter.addStyleName(row, 0, "iconCell");
+        cellFormatter.addStyleName(row, 0, "leftMostCell");
+
+        cellFormatter.addStyleName(row, 1, "iconCell");
+
+        table.setWidget(row, 2, name);
+        cellFormatter.addStyleName(row, 2, "dataCell");
+        cellFormatter.addStyleName(row, 2, "projectNameColumn");
+
+        table.setText(row, 3, description);
+        cellFormatter.addStyleName(row, 3, "dataCell");
+    }
+    private void populateSuggestedParents(final FlexTable table) {
+        RestApi listPermsProj = new RestApi("projects")
+                .view("")
+                .addParameter("type", "permissions")
+                .addParameter("d", true);
+        listPermsProj
+                .get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
+                    @Override
+                    public void onFailure(Throwable throwable) {
+                        // never invoked
+                    }
+
+                    @Override
+                    public void onSuccess(NativeMap<JSExtendedProject> projectMap) {
+//                        log.debug(projectMap.toString());
+                        int row = 1;
+                        for(String name: projectMap.keySet()) {
+                            JSExtendedProject proj = projectMap.get(name);
+
+                            final Anchor projectLink = new Anchor(name);
+                            projectLink.addClickHandler(new ClickHandler() {
+
+                                @Override
+                                public void onClick(ClickEvent event) {
+                                    Anchor source = (Anchor) event.getSource();
+                                    parent.setText(source.getText());
+//                                    table.getCellFormatter().addStyleName(newRow, 0, Gerrit.RESOURCES.css().iconCell());
+//                                    table.getCellFormatter().addStyleName(newRow, 0, Gerrit.RESOURCES.css().leftMostCell());
+                                }
+
+                            });
+                            addDataRow(suggestedParentsTab, row, projectLink, proj.getDescription());
+                            table.setWidget(row, 2, projectLink);
+                            table.setText(row, 3, proj.getDescription());
+                            row++;
+
+//                            setRowItem(i, k);
+
+                        }
+                        table.getRowFormatter().addStyleName(1, "activeRow");
+
+
+                    }
+                });
+        suggestedParentsTab.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent clickEvent) {
+                FlexTable table = ((FlexTable) clickEvent.getSource());
+                int row = table.getCellForEvent(clickEvent).getRowIndex();
+                for(int i = 1; i < table.getRowCount(); i++) {
+                    if(i == row) {
+                        table.getRowFormatter().addStyleName(i, "activeRow");
+                    }
+                    else {
+                        table.getRowFormatter().removeStyleName(i, "activeRow");
+                    }
+                }
+            }
+        });
     }
 
     private static class JSExtendedProject extends JavaScriptObject {
@@ -462,27 +511,27 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
             project.setFocus(true);
             return;
         }
-        final String retString;
-        final DialogBox perms = new DialogBox(true);
-        RestApi listPermsProj = new RestApi("projects").view("").addParameter("type", "permissions");
-        listPermsProj.get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
-            @Override
-            public void onFailure(Throwable throwable) {
-
-            }
-
-            @Override
-            public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("First added hardcoded").append('\n');
-                for (String s : javaScriptObject.keySet()) {
-                    sb.append(s).append('\n');
-                }
-                perms.setText(sb.toString());
-                perms.show();
-            }
-        });
-        return;
+//        final String retString;
+//        final DialogBox perms = new DialogBox(true);
+//        RestApi listPermsProj = new RestApi("projects").view("").addParameter("type", "permissions");
+//        listPermsProj.get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
+//            @Override
+//            public void onFailure(Throwable throwable) {
+//
+//            }
+//
+//            @Override
+//            public void onSuccess(NativeMap<JSExtendedProject> javaScriptObject) {
+//                StringBuilder sb = new StringBuilder();
+//                sb.append("First added hardcoded").append('\n');
+//                for (String s : javaScriptObject.keySet()) {
+//                    sb.append(s).append('\n');
+//                }
+//                perms.setText(sb.toString());
+//                perms.show();
+//            }
+//        });
+//        return;
 //
 //        enableForm(false);
 //        String[] branchList = branches.getText().isEmpty()? null:branches.getText().split(",");
@@ -528,21 +577,6 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //                History.newItem("/admin/projects/" + name);
 //            }
 //        });
-////        ProjectApi.createProject(projectName, parentName, emptyCommit.getValue(),
-////                permissionsOnly.getValue(), new AsyncCallback<VoidResult>() {
-////                    @Override
-////                    public void onSuccess(VoidResult result) {
-////                        String nameWithoutSuffix = ProjectUtil.stripGitSuffix(projectName);
-////                        History.newItem(Dispatcher.toProjectAdmin(new Project.NameKey(
-////                                nameWithoutSuffix), ProjectScreen.INFO));
-////                    }
-////
-////                    @Override
-////                    public void onFailure(Throwable caught) {
-////                        new ErrorDialog(caught.getMessage()).center();
-////                        enableForm(true);
-////                    }
-////                });
     }
 
     private void enableForm(final boolean enabled) {
