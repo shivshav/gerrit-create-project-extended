@@ -19,7 +19,6 @@ import com.google.gwtorm.server.OrmException;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
-import com.spazz.shiv.gerrit.plugins.createprojectextended.ExtendedProjectInfo;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject.ExtendedProjectInput;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
