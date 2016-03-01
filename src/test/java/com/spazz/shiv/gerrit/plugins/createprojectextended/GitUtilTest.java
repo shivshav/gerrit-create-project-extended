@@ -108,11 +108,11 @@ public class GitUtilTest extends RepositoryTestCase{
                 .call();
 
         // Ensure that the work tree is clean
-        assert (git.status().call().isClean());
+        assertTrue(git.status().call().isClean());
         File file = new File(git.getRepository().getWorkTree(), "commit_test");
 
         // Ensure the file actually exists
-        assert file.exists();
+        assertTrue(file.exists());
 
         FileInputStream fileInputStream = new FileInputStream(file);
         byte[] fileChars = new byte[(int) file.length()];
