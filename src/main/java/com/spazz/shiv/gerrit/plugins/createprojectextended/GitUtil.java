@@ -1,10 +1,6 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended;
 
 import com.google.gerrit.extensions.common.CommitInfo;
-import com.google.gerrit.extensions.restapi.BadRequestException;
-import com.google.gerrit.reviewdb.client.Project;
-import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
-import com.google.gerrit.server.git.GitRepositoryManager;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.eclipse.jgit.dircache.DirCache;
@@ -19,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,7 +26,7 @@ public class GitUtil {
     private static final Logger log = LoggerFactory.getLogger(GitUtil.class);
 
     public static void validateBranch(Repository repo, String ref) throws InvalidRefNameException, RefNotFoundException, IOException {
-        ref = GitUtil.denormalizeBranchName(ref);
+        ref = GitUtil.normalizeBranchName(ref);
         if(!ref.matches(Constants.HEAD) && !Repository.isValidRefName(ref)) {
             throw new InvalidRefNameException(ref + " is not a valid refname!");
         }
@@ -62,7 +57,7 @@ public class GitUtil {
 //            boolean locked = index.lock();
 //            DirCache index = repo.lockDirCache();
 
-            refName = normalizeBranchName(refName, false);
+            refName = normalizeBranchName(refName);
             ObjectId branchRef = repo.resolve(refName);
             RevWalk rw = new RevWalk(repo);
             RevCommit parent = rw.parseCommit(branchRef);
@@ -147,6 +142,8 @@ public class GitUtil {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (InvalidRefNameException e) {
+            e.printStackTrace();
         }
     }
     
@@ -157,8 +154,7 @@ public class GitUtil {
     //  filecontents
     //  commitMessage
 
-    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer,
-                                              GitReferenceUpdated referenceUpdated, Project.NameKey key, Map<String, String> commit) {
+    public static CommitInfo createFileCommit(Repository repo, PersonIdent committer, Map<String, String> commit) {
         log.info("Now entering the createFileCommit method");
 
 
@@ -178,8 +174,8 @@ public class GitUtil {
             String fileContents = commit.get("fileContents");
             String commitMessage = commit.get("commitMessage");
 
-            branchRefsHeads = GitUtil.denormalizeBranchName(refName);
-            branchAlone = GitUtil.normalizeBranchName(refName);
+            branchRefsHeads = GitUtil.normalizeBranchName(refName);
+//            branchAlone = GitUtil.normalizeBranchName(refName);
 
             // Contents of the file becomes a blob
             byte[] grFile = fileContents.getBytes();
@@ -192,35 +188,47 @@ public class GitUtil {
 //                formatter.append(filename, FileMode.REGULAR_FILE, fileId);
 
 //            commitMessageBuilder.append(commitMessage).append(System.lineSeparator());
-            RevWalk rw = new RevWalk(repo);
-            ObjectId parentId = repo.getRef(branchRefsHeads).getObjectId();
-            RevCommit parentCommit = rw.parseCommit(parentId);
 
-            RevTree parentTree = parentCommit.getTree();
-            TreeWalk tw = new TreeWalk(repo);
-            tw.addTree(parentTree);
-            rw.dispose();
-            
-            while(tw.next()) {
-                if(tw.getObjectId(0) != ObjectId.zeroId()) {
-                    if(tw.getNameString().matches(filename)) {
+            // Check if this is the first commit to the repo
+            Ref headRef = repo.getRef( Constants.HEAD );
+
+            ObjectId parent = null;
+            // If there are previous commits, add all files previously in the repo to the index
+            if( headRef != null && headRef.getObjectId() != null ) {
+                // we have previous commits
+                RevWalk rw = new RevWalk(repo);
+                parent = repo.getRef(branchRefsHeads).getObjectId();
+                RevCommit parentCommit = rw.parseCommit(parent);
+
+                RevTree parentTree = parentCommit.getTree();
+                TreeWalk tw = new TreeWalk(repo);
+                tw.addTree(parentTree);
+                rw.dispose();
+
+                while(tw.next()) {
+                    if(tw.getObjectId(0) != ObjectId.zeroId()) {
+                        if(tw.getNameString().matches(filename)) {
 //                        fileAlreadyCreated = true;
 //                        fileId = tw.getObjectId(0);
 //                        RevBlob blob;
-                        log.info(tw.getNameString() + " found");
-                        continue;
+                            log.info(tw.getNameString() + " found");
+                            continue;
+                        }
+
+                        DirCacheEntry currentEntry = new DirCacheEntry(tw.getPathString());
+                        currentEntry.setFileMode(tw.getFileMode(0));
+                        currentEntry.setObjectId(tw.getObjectId(0));
+                        idxBuilder.add(currentEntry);
+//                    formatter.append(tw.getNameString(), tw.getFileMode(0), tw.getObjectId(0));
+                    }
+                    else {
+                        log.info("Found Zero ID object");
                     }
 
-                    DirCacheEntry currentEntry = new DirCacheEntry(tw.getPathString());
-                    currentEntry.setFileMode(tw.getFileMode(0));
-                    currentEntry.setObjectId(tw.getObjectId(0));
-                    idxBuilder.add(currentEntry);
-//                    formatter.append(tw.getNameString(), tw.getFileMode(0), tw.getObjectId(0));
                 }
-                else {
-                    log.info("Found Zero ID object");
-                }
-                
+                tw.close();
+
+
             }
 //            TreeFormatter formatter = new TreeFormatter();
 //            for (Map<String, String> commit :
@@ -230,7 +238,7 @@ public class GitUtil {
 
 //            String commitMessage = commitMessageBuilder.toString();
 
-            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
+//            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
 
             info = new CommitInfo(); // info to return on success
 
@@ -243,11 +251,12 @@ public class GitUtil {
             idxBuilder.finish();
             ObjectId treeId = index.writeTree(oi);
             log.info("TreeID: " + treeId.getName());
-            tw.close();
-            
+
             // Commit the changes to the repo i.e. attach our local leaf to the repo tree
             CommitBuilder cb = new CommitBuilder();
-            cb.setParentId(parent);
+            if (parent != null) {
+                cb.setParentId(parent);
+            }
             cb.setTreeId(treeId);
             cb.setAuthor(committer);
             cb.setCommitter(committer);
@@ -266,31 +275,38 @@ public class GitUtil {
             ru.setForceUpdate(true);
             ru.setRefLogIdent(committer);
             ru.setNewObjectId(commitId);
-            ru.setExpectedOldObjectId(parent.toObjectId());
+            if (parent != null) {
+                ru.setExpectedOldObjectId(parent.toObjectId());
+            }
             ru.setRefLogMessage("commit: " + commitMessage, false);
 
             RefUpdate.Result result = ru.update();
             log.info("Result: " + result.name());
-            switch (result) {
-                case NEW:
-                case FAST_FORWARD:
-                case FORCED:
-                    referenceUpdated.fire(key, ru);
-                    break;
-                default: {
-                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
-                }
-            }
+//            switch (result) {
+//                case NEW:
+//                case FAST_FORWARD:
+//                case FORCED:
+//                    referenceUpdated.fire(key, ru);
+//                    break;
+//                default: {
+//                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
+//                }
+//            }
         } catch(IOException ioe) {
             log.error("Unable to create commit", ioe);
+        } catch (InvalidRefNameException e) {
+            e.printStackTrace();
         }
 
         return info;
     }
 
-    public static String denormalizeBranchName(String refName, boolean ignoreHead) {
+    public static String denormalizeBranchName(String refName) throws InvalidRefNameException {
         //TODO: I need to make sure this always spits back HEAD for those cases which apply
-        if(ignoreHead && refName.matches(Constants.HEAD)) {
+        if(refName.matches(Constants.R_HEADS + Constants.HEAD)) {
+            throw new InvalidRefNameException(Constants.R_HEADS + Constants.HEAD + " is not a valid ref name");
+        }
+        if(refName.matches(Constants.HEAD)) {
             log.info("denormalizeBranchName::refName was " + refName);
             return refName;
         }
@@ -302,13 +318,16 @@ public class GitUtil {
         return refName;
     }
 
-    public static String denormalizeBranchName(String refName) {
-        return GitUtil.denormalizeBranchName(refName, true);
-    }
+//    public static String denormalizeBranchName(String refName) throws InvalidRefNameException {
+//        return GitUtil.denormalizeBranchName(refName, true);
+//    }
 
-    public static String normalizeBranchName(String refName, boolean ignoreHead) {
+    public static String normalizeBranchName(String refName) throws InvalidRefNameException {
+        if(refName.matches(Constants.R_HEADS + Constants.HEAD)) {
+            throw new InvalidRefNameException(Constants.R_HEADS + Constants.HEAD + " is not a valid reference");
+        }
         //TODO: I need to make sure this always spits back HEAD for those cases
-        if(ignoreHead && refName.matches(Constants.HEAD)) {
+        if(refName.matches(Constants.HEAD)) {
             log.info("normalizeBranchName::refName was " + refName);
             return refName;
         }
@@ -323,9 +342,9 @@ public class GitUtil {
         return refName;
     }
 
-    public static String normalizeBranchName(String refName) {
-        return GitUtil.normalizeBranchName(refName, true);
-    }
+//    public static String normalizeBranchName(String refName) throws InvalidRefNameException {
+//        return GitUtil.normalizeBranchName(refName, true);
+//    }
 
     private static String removePrecedingSlashes(String refName) {
 

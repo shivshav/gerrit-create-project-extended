@@ -1,9 +1,11 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.HashMultimap;
 import com.google.gerrit.extensions.common.CommitInfo;
-import com.google.gerrit.extensions.restapi.*;
+import com.google.gerrit.extensions.restapi.BadRequestException;
+import com.google.gerrit.extensions.restapi.Response;
+import com.google.gerrit.extensions.restapi.RestApiException;
+import com.google.gerrit.extensions.restapi.RestModifyView;
 import com.google.gerrit.reviewdb.client.Project;
 import com.google.gerrit.server.CurrentUser;
 import com.google.gerrit.server.config.CanonicalWebUrl;
@@ -16,11 +18,10 @@ import com.google.inject.Provider;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
-import org.eclipse.jgit.lib.*;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.eclipse.jgit.lib.Constants;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -132,7 +133,7 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
             reviewMap.put("commitMessage", message);
 
             CommitInfo cInfo = new CommitInfo();
-            cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), referenceUpdated, name, reviewMap);
+            cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), reviewMap);
 
             info = new GitReviewInfo();
             info.commitId = cInfo.commit;
@@ -170,92 +171,92 @@ public class AddGitReview implements RestModifyView<ProjectResource, AddGitRevie
         return reviewFile;
     }
 
-    private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName, String message) {
-        log.info("Now entering the createFileCommit method");
-
-        GitReviewInfo info = null;
-
-        try(ObjectInserter oi = repo.newObjectInserter()) {
-
-            String branchRefsHeads = GitUtil.denormalizeBranchName(refName);
-            String branchAlone = GitUtil.normalizeBranchName(refName);
-
-            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
-
-            info = new GitReviewInfo(); // info to return on success
-
-            // Contents of the file becomes a blob
-            byte[] grFile = ("[" + GITREVIEW_REMOTE_NAME + "]\n" +
-                    GITREVIEW_HOST_KEY + webUrl + "\n" +
-                    GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
-                    GITREVIEW_PROJECT_KEY + project.get() + ".git" + "\n" +
-                    GITREVIEW_DEFAULT_BRANCH_KEY + branchAlone + "\n").getBytes();
-
-            // Create the file blob for the Git tree
-            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, grFile, 0, grFile.length);
-            log.info("FileID: " + fileId.getName());
-
-            // Add a tree object that represents the filename and metadata
-            TreeFormatter formatter = new TreeFormatter();
-            formatter.append(GITREVIEW_FILENAME, FileMode.REGULAR_FILE, fileId);
-            ObjectId treeId = oi.insert(formatter);
-            log.info("TreeID: " + treeId.getName());
-
-            // Commit the changes to the repo
-            PersonIdent person = new PersonIdent(repo);
-            CommitBuilder cb = new CommitBuilder();
-            cb.setParentId(parent);
-            cb.setTreeId(treeId);
-            cb.setAuthor(metaDataUpdateFactory.getUserPersonIdent());
-            cb.setCommitter(metaDataUpdateFactory.getUserPersonIdent());
-            cb.setMessage(message);
-            ObjectId commitId = oi.insert(cb);
-            log.info("CommitID: " + commitId.getName());
-
-            // Get relevant info to send back to user
-            info.commitId = commitId.abbreviate(7).name();
-            info.commitMessage = cb.getMessage();
-
-            // Flush to inform the framework of the commit
-            oi.flush();
-
-            RefUpdate ru = repo.updateRef(branchRefsHeads);
-//            ru.setForceUpdate(true);
-            ru.setRefLogIdent(metaDataUpdateFactory.getUserPersonIdent());
-            ru.setNewObjectId(commitId);
-//            ru.setExpectedOldObjectId(ObjectId.zeroId());
-            ru.setRefLogMessage("commit: " + message, false);
-
-            RefUpdate.Result result = ru.update();
-            log.info("Result: " + result.name());
-            switch (result) {
-                case NEW:
-//                    referenceUpdated.fire(project, ru);
-                    break;
-                case FAST_FORWARD:
-                    break;
-                default: {
-                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
-                }
-            }
+//    private GitReviewInfo createFileCommit(Repository repo, Project.NameKey project, String refName, String message) {
+//        log.info("Now entering the createFileCommit method");
 //
-//            for (String ref : refs) {
-//                RefUpdate ru = repo.updateRef(ref);
-//                ru.setNewObjectId(commitId);
-//                final RefUpdate.Result result = ru.update();
-//                switch (result) {
-//                    case NEW:
-//                        referenceUpdated.fire(project, ru);
-//                        break;
-//                    default: {
-//                        throw new IOException(String.format("Failed to create ref \"%s\": %s", ref, result.name()));
-//                    }
+//        GitReviewInfo info = null;
+//
+//        try(ObjectInserter oi = repo.newObjectInserter()) {
+//
+//            String branchRefsHeads = GitUtil.denormalizeBranchName(refName);
+//            String branchAlone = GitUtil.normalizeBranchName(refName);
+//
+//            ObjectId parent = repo.getRef(branchRefsHeads).getObjectId();
+//
+//            info = new GitReviewInfo(); // info to return on success
+//
+//            // Contents of the file becomes a blob
+//            byte[] grFile = ("[" + GITREVIEW_REMOTE_NAME + "]\n" +
+//                    GITREVIEW_HOST_KEY + webUrl + "\n" +
+//                    GITREVIEW_PORT_KEY + GITREVIEW_PORT_VALUE + "\n" +
+//                    GITREVIEW_PROJECT_KEY + project.get() + ".git" + "\n" +
+//                    GITREVIEW_DEFAULT_BRANCH_KEY + branchAlone + "\n").getBytes();
+//
+//            // Create the file blob for the Git tree
+//            ObjectId fileId = oi.insert(Constants.OBJ_BLOB, grFile, 0, grFile.length);
+//            log.info("FileID: " + fileId.getName());
+//
+//            // Add a tree object that represents the filename and metadata
+//            TreeFormatter formatter = new TreeFormatter();
+//            formatter.append(GITREVIEW_FILENAME, FileMode.REGULAR_FILE, fileId);
+//            ObjectId treeId = oi.insert(formatter);
+//            log.info("TreeID: " + treeId.getName());
+//
+//            // Commit the changes to the repo
+//            PersonIdent person = new PersonIdent(repo);
+//            CommitBuilder cb = new CommitBuilder();
+//            cb.setParentId(parent);
+//            cb.setTreeId(treeId);
+//            cb.setAuthor(metaDataUpdateFactory.getUserPersonIdent());
+//            cb.setCommitter(metaDataUpdateFactory.getUserPersonIdent());
+//            cb.setMessage(message);
+//            ObjectId commitId = oi.insert(cb);
+//            log.info("CommitID: " + commitId.getName());
+//
+//            // Get relevant info to send back to user
+//            info.commitId = commitId.abbreviate(7).name();
+//            info.commitMessage = cb.getMessage();
+//
+//            // Flush to inform the framework of the commit
+//            oi.flush();
+//
+//            RefUpdate ru = repo.updateRef(branchRefsHeads);
+////            ru.setForceUpdate(true);
+//            ru.setRefLogIdent(metaDataUpdateFactory.getUserPersonIdent());
+//            ru.setNewObjectId(commitId);
+////            ru.setExpectedOldObjectId(ObjectId.zeroId());
+//            ru.setRefLogMessage("commit: " + message, false);
+//
+//            RefUpdate.Result result = ru.update();
+//            log.info("Result: " + result.name());
+//            switch (result) {
+//                case NEW:
+////                    referenceUpdated.fire(project, ru);
+//                    break;
+//                case FAST_FORWARD:
+//                    break;
+//                default: {
+//                    throw new IOException(String.format("Failed to create ref: %s", result.name()));
 //                }
 //            }
-        } catch(IOException ioe) {
-            log.error("Cannot create hello world commit", ioe);
-        }
-
-        return info;
-    }
+////
+////            for (String ref : refs) {
+////                RefUpdate ru = repo.updateRef(ref);
+////                ru.setNewObjectId(commitId);
+////                final RefUpdate.Result result = ru.update();
+////                switch (result) {
+////                    case NEW:
+////                        referenceUpdated.fire(project, ru);
+////                        break;
+////                    default: {
+////                        throw new IOException(String.format("Failed to create ref \"%s\": %s", ref, result.name()));
+////                    }
+////                }
+////            }
+//        } catch(IOException ioe) {
+//            log.error("Cannot create hello world commit", ioe);
+//        }
+//
+//        return info;
+//    }
 }

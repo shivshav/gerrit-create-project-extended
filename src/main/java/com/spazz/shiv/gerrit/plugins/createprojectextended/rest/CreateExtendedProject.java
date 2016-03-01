@@ -21,6 +21,7 @@ import com.google.inject.Provider;
 import com.google.inject.assistedinject.Assisted;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.GitUtil;
 import com.spazz.shiv.gerrit.plugins.createprojectextended.rest.CreateExtendedProject.ExtendedProjectInput;
+import org.eclipse.jgit.api.errors.InvalidRefNameException;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.RefUpdate;
@@ -244,7 +245,12 @@ public class CreateExtendedProject implements RestModifyView<ConfigResource, Ext
         RefUpdate refUpdate = repo.getRefDatabase().newUpdate(Constants.HEAD, detach);
         refUpdate.setForceUpdate(force);
 
-        newHead = GitUtil.denormalizeBranchName(newHead, false);
+        // TODO: Handle this differently with the exception. Should we be normalizing earlier in the process?
+        try {
+            newHead = GitUtil.denormalizeBranchName(newHead);
+        } catch (InvalidRefNameException e) {
+            e.printStackTrace();
+        }
         RefUpdate.Result res = refUpdate.link(newHead);
 
         String resStr;

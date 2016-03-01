@@ -3,7 +3,6 @@ package com.spazz.shiv.gerrit.plugins.createprojectextended.rest;
 import com.google.common.base.Strings;
 import com.google.gerrit.extensions.common.CommitInfo;
 import com.google.gerrit.extensions.restapi.*;
-import com.google.gerrit.extensions.restapi.Response;
 import com.google.gerrit.server.extensions.events.GitReferenceUpdated;
 import com.google.gerrit.server.git.GitRepositoryManager;
 import com.google.gerrit.server.git.MetaDataUpdate;
@@ -146,7 +145,7 @@ public class AddGitIgnore implements RestModifyView<ProjectResource, AddGitIgnor
             ignoreMap.put("commitMessage", commitMessage);
 //            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), gitIgnoreBranch,
 //                    GITIGNORE_FILENAME, ignoreFileContents, commitMessage, referenceUpdated, projectResource.getNameKey());
-            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), referenceUpdated, projectResource.getNameKey(), ignoreMap);
+            CommitInfo cInfo = GitUtil.createFileCommit(repo, metaDataUpdateFactory.getUserPersonIdent(), ignoreMap);
 //            CommitInfo cInfo = new CommitInfo();
             // Build our response
             info = new GitIgnoreInfo();
