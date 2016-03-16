@@ -1,28 +1,26 @@
 package com.spazz.shiv.gerrit.plugins.createprojectextended.client;
 
 import com.google.gerrit.client.rpc.NativeMap;
-//import com.google.gerrit.common.ProjectUtil;
-//import com.google.gerrit.extensions.api.projects.ProjectApi;
-//import com.google.gerrit.extensions.api.projects.Projects;
-//import com.google.gerrit.extensions.common.ProjectInfo;
 import com.google.gerrit.plugin.client.rpc.RestApi;
 import com.google.gerrit.plugin.client.screen.Screen;
-//import com.google.gerrit.reviewdb.client.Project;
-//import com.google.gerrit.server.StringUtil;
-//import com.google.gerrit.server.api.projects.ProjectApiImpl;
 import com.google.gwt.core.client.JavaScriptObject;
-//import com.google.gwt.core.client.JsArray;
-//import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.event.dom.client.*;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.user.client.Event;
-//import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.*;
 
-import java.util.Arrays;
-import java.util.List;
+//import com.google.gerrit.common.ProjectUtil;
+//import com.google.gerrit.extensions.api.projects.ProjectApi;
+//import com.google.gerrit.extensions.api.projects.Projects;
+//import com.google.gerrit.extensions.common.ProjectInfo;
+//import com.google.gerrit.reviewdb.client.Project;
+//import com.google.gerrit.server.StringUtil;
+//import com.google.gerrit.server.api.projects.ProjectApiImpl;
+//import com.google.gwt.core.client.JsArray;
+//import com.google.gwt.core.client.Scheduler;
+//import com.google.gwt.user.client.History;
 //import com.google.gwtexpui.globalkey.client.NpTextBox;
 //import com.google.gwtjsonrpc.common.VoidResult;
 //import com.google.inject.Inject;
@@ -61,7 +59,6 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
     private CheckBox permissionsOnly;
 
     private FlexTable suggestedParentsTab;
-    private PopupPanel projectsPopup;
 
     static class Factory implements Screen.EntryPoint {
         @Override
@@ -271,6 +268,12 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         });
 
         browse = new Button("Browse");
+        browse.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent clickEvent) {
+                createProjectsPopup();
+            }
+        });
 //        browse.addClickHandler(new ClickHandler() {
 //            @Override
 //            public void onClick(final ClickEvent event) {
@@ -289,6 +292,33 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //            }
 //        });
     }
+
+    private void createProjectsPopup() {
+        final DialogBox projectsPopup = new DialogBox(true);
+        VerticalPanel verticalPanel = new VerticalPanel();
+
+        projectsPopup.setText("All Gerrit Projects");
+
+        FlexTable projTable = new FlexTable();
+        projTable.setStyleName("changeTable");
+        addHeaderRow(projTable);
+        populateSuggestedParents(projTable, false);
+        projTable.setVisible(true);
+        verticalPanel.add(projTable);
+
+        Button close = new Button();
+        close.setText("Close");
+        close.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent clickEvent) {
+                projectsPopup.hide();
+            }
+        });
+        verticalPanel.add(close);
+
+        projectsPopup.add(verticalPanel);
+        projectsPopup.center();
+        projectsPopup.show();    }
 
     private void initParentBox() {
         RestApi listPermsProj = new RestApi("projects").view("").addParameter("type", "permissions");
@@ -334,7 +364,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 //        cellFormatter.setHorizontalAlignment(
 //                0, 1, HasHorizontalAlignment.ALIGN_LEFT);
 //        cellFormatter.setColSpan(0, 0, 2);
-        populateSuggestedParents(suggestedParentsTab);
+        populateSuggestedParents(suggestedParentsTab, true);
 
         suggestedParentsTab.setVisible(true);
 //
@@ -381,11 +411,15 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
         table.setText(row, 3, description);
         cellFormatter.addStyleName(row, 3, "dataCell");
     }
-    private void populateSuggestedParents(final FlexTable table) {
+    private void populateSuggestedParents(final FlexTable table, boolean permissionsOnly) {
         RestApi listPermsProj = new RestApi("projects")
                 .view("")
-                .addParameter("type", "permissions")
                 .addParameter("d", true);
+
+        if (permissionsOnly) {
+            listPermsProj.addParameter("type", "permissions");
+        }
+
         listPermsProj
                 .get(new AsyncCallback<NativeMap<JSExtendedProject>>() {
                     @Override
@@ -412,7 +446,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
                                 }
 
                             });
-                            addDataRow(suggestedParentsTab, row, projectLink, proj.getDescription());
+                            addDataRow(table, row, projectLink, proj.getDescription());
                             table.setWidget(row, 2, projectLink);
                             table.setText(row, 3, proj.getDescription());
                             row++;
@@ -425,7 +459,7 @@ public class CreateProjectExtendedScreen extends VerticalPanel {
 
                     }
                 });
-        suggestedParentsTab.addClickHandler(new ClickHandler() {
+        table.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent clickEvent) {
                 FlexTable table = ((FlexTable) clickEvent.getSource());

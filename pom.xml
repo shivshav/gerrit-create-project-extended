@@ -95,7 +95,7 @@ limitations under the License.
     </build>
     <profiles>
         <profile>
-            <id>conf</id>
+            <id>docker</id>
             <build>
                 <plugins>
                     <plugin>
@@ -110,7 +110,7 @@ limitations under the License.
                         <artifactId>exec-maven-plugin</artifactId>
                         <groupId>org.codehaus.mojo</groupId>
                         <executions>
-                            <execution><!-- Run our version calculation script -->
+                            <execution><!-- Run docker deployment script -->
                                 <id>Version Calculation</id>
                                 <phase>install</phase>
                                 <goals>

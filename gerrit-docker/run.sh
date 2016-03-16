@@ -40,6 +40,12 @@ if [ $IS_RUNNING -eq 0 ]; then
 
         if [ $RESTARTED -eq 0 ]; then
             echo "Restarted successfully"
+#            WAIT_STR="Waiting for gerrit container."
+#            while [ -z "$(docker logs ${GERRIT_NAME} 2>&1 | grep "Gerrit Code Review [0-9..]* ready")" ]; do
+#                WAIT_STR+="."
+#                printf "${WAIT_STR}\r"
+#                sleep 1
+#            done
         else
             echo "Restart FAILED!"
             exit 1
