@@ -1,4 +1,4 @@
-# gerrit-create-project-extended
+# Gerrit Create Project Extended Plugin
 A plugin for the [Gerrit Code Review System](https://www.gerritcodereview.com/) that adds functionality to project creation
 
 This plugin can be used to aid in project creation. In addition to mimicking all parts of Gerrit's own Create Project functionality (REST API and UI currently), the user is also able to:
@@ -13,7 +13,7 @@ This plugin can be used to aid in project creation. In addition to mimicking all
 3. `cd gerrit-create-project-extended`
 4. edit `pom.xml` file with correct gerrit major.minor version 
 5. Build with maven `mvn deploy`
-6. Copy plugin jar from `build/` into `$GERRIT_SITE/plugins/
+6. Copy plugin jar from `build/` into `$GERRIT_SITE/plugins/`
 7. Restart gerrit
 
 ## Usage
